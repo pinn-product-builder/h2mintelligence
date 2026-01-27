@@ -3,7 +3,7 @@ import { OKRStatus } from '@/types/okr';
 
 interface ProgressBarProps {
   progress: number;
-  status: OKRStatus;
+  status?: OKRStatus;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
@@ -14,6 +14,12 @@ const statusColors: Record<OKRStatus, string> = {
   'critical': 'gradient-critical',
 };
 
+const getStatusFromProgress = (progress: number): OKRStatus => {
+  if (progress >= 70) return 'on-track';
+  if (progress >= 40) return 'attention';
+  return 'critical';
+};
+
 const sizeClasses = {
   sm: 'h-1.5',
   md: 'h-2',
@@ -21,6 +27,7 @@ const sizeClasses = {
 };
 
 export function ProgressBar({ progress, status, size = 'md', showLabel = false }: ProgressBarProps) {
+  const resolvedStatus = status ?? getStatusFromProgress(progress);
   return (
     <div className="w-full">
       {showLabel && (
@@ -31,7 +38,7 @@ export function ProgressBar({ progress, status, size = 'md', showLabel = false }
       )}
       <div className={cn("progress-bar", sizeClasses[size])}>
         <div 
-          className={cn("progress-bar-fill", statusColors[status])}
+          className={cn("progress-bar-fill", statusColors[resolvedStatus])}
           style={{ width: `${Math.min(progress, 100)}%` }}
         />
       </div>

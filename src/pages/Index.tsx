@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
+import { OKRsSection } from '@/components/sections/OKRsSection';
+import { IndicadoresSection } from '@/components/sections/IndicadoresSection';
+import { SectorSection } from '@/components/sections/SectorSection';
+import { UsuariosSection } from '@/components/sections/UsuariosSection';
+import { ConfiguracoesSection } from '@/components/sections/ConfiguracoesSection';
 import { cn } from '@/lib/utils';
+import { Sector } from '@/types/okr';
 
 const sectionTitles: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão geral dos OKRs e indicadores' },
@@ -38,14 +44,12 @@ const Index = () => {
         
         <div className="p-6">
           {currentSection === 'dashboard' && <Dashboard />}
-          
-          {currentSection !== 'dashboard' && (
-            <div className="card-elevated p-12 text-center">
-              <h2 className="text-xl font-semibold text-foreground mb-2">{title}</h2>
-              <p className="text-muted-foreground">
-                Esta seção será implementada em breve.
-              </p>
-            </div>
+          {currentSection === 'okrs' && <OKRsSection />}
+          {currentSection === 'indicadores' && <IndicadoresSection />}
+          {currentSection === 'usuarios' && <UsuariosSection />}
+          {currentSection === 'configuracoes' && <ConfiguracoesSection />}
+          {['comercial', 'financeiro', 'compras', 'marketing', 'operacoes'].includes(currentSection) && (
+            <SectorSection sector={currentSection as Sector} />
           )}
         </div>
       </main>
