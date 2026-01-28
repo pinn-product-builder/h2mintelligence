@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { mockObjectives, sectorLabels } from '@/data/mockData';
+import { useApp } from '@/contexts/AppContext';
+import { sectorLabels } from '@/data/mockData';
 import { OKRCard } from '@/components/dashboard/OKRCard';
 import { NewOKRForm } from '@/components/okr/NewOKRForm';
 import { Button } from '@/components/ui/button';
@@ -9,15 +10,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, LayoutGrid, List } from 'lucide-react';
 
 export function OKRsSection() {
+  const { objectives } = useApp();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const filteredObjectives = mockObjectives.filter(obj => {
+  const filteredObjectives = objectives.filter(obj => {
     const matchesSearch = obj.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || obj.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const stats = {
+    total: objectives.length,
+    onTrack: objectives.filter(o => o.status === 'on-track').length,
+    attention: objectives.filter(o => o.status === 'attention').length,
+    critical: objectives.filter(o => o.status === 'critical').length,
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -105,19 +114,19 @@ export function OKRsSection() {
       {/* Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card-elevated p-4 text-center">
-          <p className="text-2xl font-bold text-foreground">{mockObjectives.length}</p>
+          <p className="text-2xl font-bold text-foreground">{stats.total}</p>
           <p className="text-sm text-muted-foreground">Total de OKRs</p>
         </div>
         <div className="card-elevated p-4 text-center">
-          <p className="text-2xl font-bold text-success">3</p>
+          <p className="text-2xl font-bold text-success">{stats.onTrack}</p>
           <p className="text-sm text-muted-foreground">No Prazo</p>
         </div>
         <div className="card-elevated p-4 text-center">
-          <p className="text-2xl font-bold text-warning">1</p>
+          <p className="text-2xl font-bold text-warning">{stats.attention}</p>
           <p className="text-sm text-muted-foreground">Atenção</p>
         </div>
         <div className="card-elevated p-4 text-center">
-          <p className="text-2xl font-bold text-critical">1</p>
+          <p className="text-2xl font-bold text-critical">{stats.critical}</p>
           <p className="text-sm text-muted-foreground">Crítico</p>
         </div>
       </div>

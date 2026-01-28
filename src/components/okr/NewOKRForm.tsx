@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useApp } from '@/contexts/AppContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Trash2, Target, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Sector } from '@/types/okr';
 
 const keyResultSchema = z.object({
   title: z.string().min(5, 'Título deve ter pelo menos 5 caracteres').max(200),
@@ -78,11 +78,11 @@ const krTypeOptions = [
 
 interface NewOKRFormProps {
   trigger?: React.ReactNode;
-  onSuccess?: (data: OKRFormData) => void;
 }
 
-export function NewOKRForm({ trigger, onSuccess }: NewOKRFormProps) {
+export function NewOKRForm({ trigger }: NewOKRFormProps) {
   const [open, setOpen] = useState(false);
+  const { addObjective } = useApp();
 
   const form = useForm<OKRFormData>({
     resolver: zodResolver(okrFormSchema),
@@ -105,12 +105,33 @@ export function NewOKRForm({ trigger, onSuccess }: NewOKRFormProps) {
   });
 
   const onSubmit = (data: OKRFormData) => {
-    console.log('OKR Created:', data);
+    addObjective({
+      title: data.title,
+      description: data.description,
+      sector: data.sector as Sector,
+      owner: data.owner,
+      period: data.period,
+      priority: data.priority,
+      keyResults: data.keyResults.map((kr, index) => ({
+        id: `kr-new-${Date.now()}-${index}`,
+        title: kr.title,
+        type: kr.type,
+        target: kr.target,
+        baseline: kr.baseline,
+        unit: kr.unit,
+        owner: kr.owner,
+        current: 0,
+        progress: 0,
+        status: 'on-track' as const,
+        lastUpdate: new Date().toISOString().split('T')[0],
+      })),
+    });
+    
     toast({
       title: 'OKR criado com sucesso!',
       description: `Objetivo "${data.title}" foi cadastrado com ${data.keyResults.length} Key Results.`,
     });
-    onSuccess?.(data);
+    
     setOpen(false);
     form.reset();
   };
