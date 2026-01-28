@@ -76,70 +76,86 @@ export function ConfiguracoesSection() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Database className="w-5 h-5" />
-                ERP Sankhya
+                Importação de Planilhas
               </CardTitle>
-              <CardDescription>Integração com o sistema ERP para importação de dados</CardDescription>
+              <CardDescription>Configure a importação de dados via arquivos CSV/Excel</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-success/10 rounded-lg border border-success/20">
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="w-5 h-5 text-success" />
                   <div>
-                    <p className="font-medium">Conexão Ativa</p>
-                    <p className="text-sm text-muted-foreground">Última sincronização: 27/01/2026 às 06:00</p>
+                    <p className="font-medium">Sistema Configurado</p>
+                    <p className="text-sm text-muted-foreground">Última importação: 28/01/2026 às 09:15</p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-success border-success">Conectado</Badge>
-              </div>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>URL do Servidor</Label>
-                  <Input defaultValue="https://erp.h2m.com.br/api" type="password" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Token de Acesso</Label>
-                  <Input defaultValue="sk_live_xxxxxxxxxxxxx" type="password" />
-                </div>
+                <Badge variant="outline" className="text-success border-success">Ativo</Badge>
               </div>
               
               <div className="space-y-2">
-                <Label>Frequência de Sincronização</Label>
-                <Select defaultValue="diaria">
+                <Label>Formato de Data Padrão</Label>
+                <Select defaultValue="dd-mm-yyyy">
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tempo-real">Tempo Real</SelectItem>
-                    <SelectItem value="horaria">A cada hora</SelectItem>
-                    <SelectItem value="diaria">Diária (06:00)</SelectItem>
-                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="dd-mm-yyyy">DD/MM/AAAA</SelectItem>
+                    <SelectItem value="mm-dd-yyyy">MM/DD/AAAA</SelectItem>
+                    <SelectItem value="yyyy-mm-dd">AAAA-MM-DD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Separador de CSV</Label>
+                <Select defaultValue="semicolon">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semicolon">Ponto e vírgula (;)</SelectItem>
+                    <SelectItem value="comma">Vírgula (,)</SelectItem>
+                    <SelectItem value="tab">Tabulação</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" className="gap-2">
-                  <RefreshCw className="w-4 h-4" />
-                  Sincronizar Agora
-                </Button>
-                <Button variant="outline">Testar Conexão</Button>
+              <div className="space-y-2">
+                <Label>Codificação de Arquivo</Label>
+                <Select defaultValue="utf8">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="utf8">UTF-8</SelectItem>
+                    <SelectItem value="latin1">ISO-8859-1 (Latin-1)</SelectItem>
+                    <SelectItem value="windows">Windows-1252</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              <Button className="gradient-accent text-accent-foreground border-0">Salvar Configurações</Button>
             </CardContent>
           </Card>
 
           <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-base">Importação Manual (Fallback)</CardTitle>
-              <CardDescription>Importar dados via arquivo quando a integração estiver indisponível</CardDescription>
+              <CardTitle className="text-base">Templates de Importação</CardTitle>
+              <CardDescription>Baixe os modelos padronizados para cada tipo de dado</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                <p className="text-muted-foreground mb-2">Arraste um arquivo CSV/Excel ou clique para selecionar</p>
-                <Button variant="outline">Selecionar Arquivo</Button>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {['Faturamento', 'Custos Operacionais', 'Estoque', 'Metas OKR', 'Leads Marketing'].map((template) => (
+                  <Button key={template} variant="outline" className="justify-start h-auto py-3">
+                    <div className="text-left">
+                      <div className="font-medium">{template}</div>
+                      <div className="text-xs text-muted-foreground">template_{template.toLowerCase().replace(' ', '_')}.xlsx</div>
+                    </div>
+                  </Button>
+                ))}
               </div>
               <p className="text-sm text-muted-foreground">
-                Formatos aceitos: .csv, .xlsx, .xls (máx. 10MB)
+                Use estes templates para garantir que seus dados sejam importados corretamente.
               </p>
             </CardContent>
           </Card>
