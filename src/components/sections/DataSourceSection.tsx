@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
-  Database, 
   Upload, 
   FileSpreadsheet, 
   RefreshCw, 
@@ -19,17 +18,14 @@ import {
   Clock,
   Trash2,
   Edit,
-  Link,
-  Server,
   Table as TableIcon,
-  Calendar,
   Download
 } from 'lucide-react';
 
 interface DataSource {
   id: string;
   name: string;
-  type: 'erp' | 'csv' | 'api' | 'manual';
+  type: 'csv' | 'manual';
   status: 'connected' | 'error' | 'pending';
   lastSync: string;
   records: number;
@@ -47,56 +43,65 @@ interface DataMapping {
 const mockDataSources: DataSource[] = [
   {
     id: '1',
-    name: 'ERP Sankhya',
-    type: 'erp',
-    status: 'connected',
-    lastSync: '2026-01-28 08:30',
-    records: 45230,
-    tables: ['Vendas', 'Custos', 'Estoque', 'Clientes'],
-  },
-  {
-    id: '2',
     name: 'Planilha Faturamento',
     type: 'csv',
     status: 'connected',
-    lastSync: '2026-01-27 14:00',
+    lastSync: '2026-01-28 09:15',
     records: 1250,
     tables: ['Faturamento Mensal'],
   },
   {
+    id: '2',
+    name: 'Planilha Custos Operacionais',
+    type: 'csv',
+    status: 'connected',
+    lastSync: '2026-01-27 14:00',
+    records: 890,
+    tables: ['Custos', 'DRE'],
+  },
+  {
     id: '3',
-    name: 'API Marketing',
-    type: 'api',
-    status: 'error',
-    lastSync: '2026-01-25 10:15',
-    records: 0,
-    tables: ['Leads', 'Campanhas'],
+    name: 'Planilha Estoque',
+    type: 'csv',
+    status: 'connected',
+    lastSync: '2026-01-28 08:00',
+    records: 3420,
+    tables: ['Giro de Estoque', 'Curva ABC'],
   },
   {
     id: '4',
+    name: 'Planilha Leads Marketing',
+    type: 'csv',
+    status: 'pending',
+    lastSync: '2026-01-25 16:30',
+    records: 520,
+    tables: ['Leads', 'Campanhas'],
+  },
+  {
+    id: '5',
     name: 'Entrada Manual - Metas',
     type: 'manual',
-    status: 'pending',
-    lastSync: '2026-01-20 16:45',
+    status: 'connected',
+    lastSync: '2026-01-27 16:45',
     records: 85,
     tables: ['Metas por Setor'],
   },
 ];
 
 const mockMappings: DataMapping[] = [
-  { id: '1', sourceField: 'vendas.valor_total', targetMetric: 'Faturamento Mensal', transformation: 'SUM', status: 'active' },
+  { id: '1', sourceField: 'faturamento.valor_total', targetMetric: 'Faturamento Mensal', transformation: 'SUM', status: 'active' },
   { id: '2', sourceField: 'custos.valor', targetMetric: 'Custos Operacionais', transformation: 'SUM', status: 'active' },
   { id: '3', sourceField: 'estoque.quantidade', targetMetric: 'Giro de Estoque', transformation: 'AVG', status: 'active' },
-  { id: '4', sourceField: 'vendas.margem', targetMetric: 'Margem EBITDA', transformation: 'AVG', status: 'inactive' },
-  { id: '5', sourceField: 'clientes.novos', targetMetric: 'Novos Clientes', transformation: 'COUNT', status: 'active' },
+  { id: '4', sourceField: 'dre.margem', targetMetric: 'Margem EBITDA', transformation: 'AVG', status: 'active' },
+  { id: '5', sourceField: 'leads.qualificados', targetMetric: 'Leads Qualificados', transformation: 'COUNT', status: 'active' },
 ];
 
 const mockImportHistory = [
-  { id: '1', source: 'ERP Sankhya', date: '2026-01-28 08:30', records: 1520, status: 'success', user: 'Sistema' },
-  { id: '2', source: 'Planilha Faturamento', date: '2026-01-27 14:00', records: 45, status: 'success', user: 'Carlos Silva' },
-  { id: '3', source: 'API Marketing', date: '2026-01-25 10:15', records: 0, status: 'error', user: 'Sistema' },
-  { id: '4', source: 'ERP Sankhya', date: '2026-01-27 08:30', records: 1480, status: 'success', user: 'Sistema' },
-  { id: '5', source: 'Entrada Manual - Metas', date: '2026-01-20 16:45', records: 12, status: 'success', user: 'Ana Costa' },
+  { id: '1', source: 'Planilha Faturamento', date: '2026-01-28 09:15', records: 125, status: 'success', user: 'Carlos Silva' },
+  { id: '2', source: 'Planilha Custos Operacionais', date: '2026-01-27 14:00', records: 89, status: 'success', user: 'Roberto Mendes' },
+  { id: '3', source: 'Planilha Estoque', date: '2026-01-28 08:00', records: 342, status: 'success', user: 'Fernanda Alves' },
+  { id: '4', source: 'Planilha Leads Marketing', date: '2026-01-25 16:30', records: 52, status: 'success', user: 'Bruno Martins' },
+  { id: '5', source: 'Entrada Manual - Metas', date: '2026-01-27 16:45', records: 12, status: 'success', user: 'Ana Costa' },
 ];
 
 export function DataSourceSection() {
@@ -122,11 +127,9 @@ export function DataSourceSection() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'erp': return <Server className="w-5 h-5 text-primary" />;
       case 'csv': return <FileSpreadsheet className="w-5 h-5 text-status-success" />;
-      case 'api': return <Link className="w-5 h-5 text-accent" />;
       case 'manual': return <TableIcon className="w-5 h-5 text-status-warning" />;
-      default: return <Database className="w-5 h-5" />;
+      default: return <FileSpreadsheet className="w-5 h-5" />;
     }
   };
 
@@ -136,7 +139,7 @@ export function DataSourceSection() {
       <div className="flex flex-wrap gap-3">
         <Button className="gradient-accent">
           <Plus className="w-4 h-4 mr-2" />
-          Nova Fonte de Dados
+          Nova Planilha
         </Button>
         <Button variant="outline">
           <Upload className="w-4 h-4 mr-2" />
@@ -144,23 +147,23 @@ export function DataSourceSection() {
         </Button>
         <Button variant="outline">
           <RefreshCw className="w-4 h-4 mr-2" />
-          Sincronizar Tudo
+          Atualizar Dados
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-card border">
           <TabsTrigger value="sources" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Database className="w-4 h-4 mr-2" />
-            Fontes de Dados
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Planilhas
           </TabsTrigger>
           <TabsTrigger value="mappings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Link className="w-4 h-4 mr-2" />
+            <TableIcon className="w-4 h-4 mr-2" />
             Mapeamentos
           </TabsTrigger>
           <TabsTrigger value="import" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Upload className="w-4 h-4 mr-2" />
-            Importação Manual
+            Importação
           </TabsTrigger>
           <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Clock className="w-4 h-4 mr-2" />
@@ -168,7 +171,7 @@ export function DataSourceSection() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Fontes de Dados */}
+        {/* Planilhas */}
         <TabsContent value="sources" className="mt-6">
           <div className="grid gap-4">
             {mockDataSources.map((source) => (
@@ -182,11 +185,11 @@ export function DataSourceSection() {
                       <div>
                         <h3 className="font-semibold text-foreground">{source.name}</h3>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                          <span className="capitalize">{source.type === 'erp' ? 'ERP' : source.type === 'csv' ? 'CSV/Excel' : source.type === 'api' ? 'API Externa' : 'Manual'}</span>
+                          <span className="capitalize">{source.type === 'csv' ? 'Planilha' : 'Manual'}</span>
                           <span>•</span>
                           <span>{source.records.toLocaleString('pt-BR')} registros</span>
                           <span>•</span>
-                          <span>Última sync: {source.lastSync}</span>
+                          <span>Última atualização: {source.lastSync}</span>
                         </div>
                         <div className="flex gap-2 mt-2">
                           {source.tables.map((table) => (
