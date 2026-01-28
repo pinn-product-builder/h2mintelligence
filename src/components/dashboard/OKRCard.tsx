@@ -4,13 +4,62 @@ import { StatusBadge } from './StatusBadge';
 import { sectorLabels } from '@/data/mockData';
 import { ChevronRight, User, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Area, AreaChart, ResponsiveContainer } from 'recharts';
+import { useMemo } from 'react';
 
 interface OKRCardProps {
   objective: Objective;
   index: number;
 }
 
+// Generate mock weekly progress data based on current progress
+function generateWeeklyProgress(currentProgress: number, status: string) {
+  const weeks = 12; // Q1 = ~12 weeks
+  const currentWeek = 4; // Simulating we're in week 4
+  const data = [];
+  
+  // Generate realistic progression curve
+  for (let i = 1; i <= weeks; i++) {
+    if (i <= currentWeek) {
+      // Past weeks - gradual increase with some variance
+      const baseProgress = (currentProgress / currentWeek) * i;
+      const variance = (Math.random() - 0.5) * 10;
+      data.push({
+        week: `S${i}`,
+        progress: Math.max(0, Math.min(100, Math.round(baseProgress + variance))),
+      });
+    } else {
+      // Future weeks - projected (null for now)
+      data.push({
+        week: `S${i}`,
+        progress: null,
+      });
+    }
+  }
+  
+  // Ensure last actual week matches current progress
+  if (currentWeek > 0 && currentWeek <= weeks) {
+    data[currentWeek - 1].progress = currentProgress;
+  }
+  
+  return data;
+}
+
 export function OKRCard({ objective, index }: OKRCardProps) {
+  const weeklyData = useMemo(() => 
+    generateWeeklyProgress(objective.progress, objective.status), 
+    [objective.progress, objective.status]
+  );
+
+  const chartColor = useMemo(() => {
+    switch (objective.status) {
+      case 'on-track': return 'hsl(var(--status-success))';
+      case 'attention': return 'hsl(var(--status-warning))';
+      case 'critical': return 'hsl(var(--status-critical))';
+      default: return 'hsl(var(--primary))';
+    }
+  }, [objective.status]);
+
   return (
     <div 
       className="card-elevated p-5 animate-slide-up cursor-pointer group"
@@ -32,6 +81,36 @@ export function OKRCard({ objective, index }: OKRCardProps) {
           </p>
         </div>
         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-accent transition-colors flex-shrink-0" />
+      </div>
+
+      {/* Weekly Progress Chart */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-muted-foreground">Evolução Semanal</span>
+          <span className="text-xs text-muted-foreground">Semana 4 de 12</span>
+        </div>
+        <div className="h-12 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={weeklyData} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+              <defs>
+                <linearGradient id={`gradient-${objective.id}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={chartColor} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={chartColor} stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone"
+                dataKey="progress"
+                stroke={chartColor}
+                strokeWidth={2}
+                fill={`url(#gradient-${objective.id})`}
+                connectNulls={false}
+                dot={false}
+                activeDot={{ r: 3, fill: chartColor }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <ProgressBar progress={objective.progress} status={objective.status} showLabel />
