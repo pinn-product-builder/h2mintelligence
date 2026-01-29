@@ -9,14 +9,16 @@ interface FileDropZoneProps {
   onClearFile: () => void;
   accept?: string;
   maxSizeMB?: number;
+  compact?: boolean;
 }
 
 export function FileDropZone({ 
   onFileSelect, 
   selectedFile, 
   onClearFile,
-  accept = '.csv,.xlsx,.xls',
-  maxSizeMB = 10
+  accept = '.csv,.xlsx,.xls,.pdf,.docx,.doc',
+  maxSizeMB = 10,
+  compact = false
 }: FileDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,7 +169,7 @@ export function FileDropZone({
                 ou <span className="text-primary underline cursor-pointer">clique para selecionar</span>
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Suporta CSV, XLS, XLSX (máx. {maxSizeMB}MB)
+                Suporta CSV, Excel, PDF, Word (máx. {maxSizeMB}MB)
               </p>
             </div>
           </div>

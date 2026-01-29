@@ -2,6 +2,7 @@ import { MetricCard } from './MetricCard';
 import { OKRCard } from './OKRCard';
 import { SectorOverview } from './SectorOverview';
 import { QuickStats } from './QuickStats';
+import { NewOKRForm } from '@/components/okr/NewOKRForm';
 import { mockMetrics, mockObjectives, mockSectorSummary } from '@/data/mockData';
 import { Plus, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,14 +28,18 @@ export function Dashboard() {
                 <Filter className="w-4 h-4" />
                 Filtrar
               </Button>
-              <Button size="sm" className="gap-2 gradient-accent text-accent-foreground border-0">
-                <Plus className="w-4 h-4" />
-                Novo OKR
-              </Button>
+              <NewOKRForm 
+                trigger={
+                  <Button size="sm" className="gap-2 gradient-accent text-accent-foreground border-0">
+                    <Plus className="w-4 h-4" />
+                    Novo OKR
+                  </Button>
+                } 
+              />
             </div>
           </div>
           
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {mockObjectives.map((objective, index) => (
               <OKRCard key={objective.id} objective={objective} index={index} />
             ))}

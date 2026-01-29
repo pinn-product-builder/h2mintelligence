@@ -10,9 +10,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Trash2, Target, AlertCircle } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Plus, Trash2, Target, AlertCircle, FileSpreadsheet, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Sector } from '@/types/okr';
+import { FileDropZone } from '@/components/data/FileDropZone';
+import { DocumentDataMapper, MappingResult } from '@/components/okr/DocumentDataMapper';
+import { useDocumentParser, ParsedDocument } from '@/hooks/useDocumentParser';
 
 const keyResultSchema = z.object({
   title: z.string().min(5, 'Título deve ter pelo menos 5 caracteres').max(200),
@@ -76,7 +80,12 @@ interface NewOKRFormProps {
 
 export function NewOKRForm({ trigger }: NewOKRFormProps) {
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [parsedDocument, setParsedDocument] = useState<ParsedDocument | null>(null);
+  
   const { addObjective, cycles } = useApp();
+  const { parseDocument, isLoading: isParsing, clearResult } = useDocumentParser();
   
   const activeCycles = cycles.filter(c => !c.isArchived);
 
@@ -95,10 +104,64 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'keyResults',
   });
+
+  const handleFileSelect = async (file: File) => {
+    setSelectedFile(file);
+    try {
+      const result = await parseDocument(file);
+      setParsedDocument(result);
+    } catch (error) {
+      toast({
+        title: 'Erro ao processar arquivo',
+        description: 'Não foi possível extrair dados do documento.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleClearFile = () => {
+    setSelectedFile(null);
+    setParsedDocument(null);
+    clearResult();
+  };
+
+  const handleApplyMapping = (result: MappingResult) => {
+    const { mapping, selectedRows, autoCreateKRs } = result;
+    
+    if (autoCreateKRs && parsedDocument && selectedRows.length > 0) {
+      const newKRs = selectedRows.slice(0, 5).map(rowIndex => {
+        const row = parsedDocument.data[rowIndex];
+        return {
+          title: mapping.krTitle ? String(row[mapping.krTitle] || '') : '',
+          type: 'numeric' as const,
+          target: mapping.krTarget ? Number(row[mapping.krTarget]) || 0 : 0,
+          baseline: mapping.krBaseline ? Number(row[mapping.krBaseline]) || 0 : 0,
+          unit: mapping.krUnit ? String(row[mapping.krUnit] || '') : '',
+          owner: mapping.krOwner ? String(row[mapping.krOwner] || '') : '',
+        };
+      }).filter(kr => kr.title || kr.target > 0);
+
+      if (newKRs.length > 0) {
+        replace(newKRs);
+        toast({
+          title: 'Dados importados!',
+          description: `${newKRs.length} Key Results foram criados a partir do documento.`,
+        });
+      }
+    }
+    
+    // Close import section after applying
+    setImportOpen(false);
+  };
+
+  const handleCancelMapping = () => {
+    handleClearFile();
+    setImportOpen(false);
+  };
 
   const onSubmit = (data: OKRFormData) => {
     addObjective({
@@ -155,6 +218,47 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Import Section */}
+            <Collapsible open={importOpen} onOpenChange={setImportOpen}>
+              <CollapsibleTrigger asChild>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full justify-between gap-2 border-dashed"
+                >
+                  <span className="flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4 text-primary" />
+                    Importar dados de documento (opcional)
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${importOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4 space-y-4">
+                {!parsedDocument ? (
+                  <div className="space-y-2">
+                    <FileDropZone
+                      onFileSelect={handleFileSelect}
+                      selectedFile={selectedFile}
+                      onClearFile={handleClearFile}
+                      accept=".csv,.xlsx,.xls,.pdf,.docx,.doc"
+                    />
+                    {isParsing && (
+                      <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processando documento...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <DocumentDataMapper
+                    document={parsedDocument}
+                    onApplyMapping={handleApplyMapping}
+                    onCancel={handleCancelMapping}
+                  />
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
             {/* Objetivo */}
             <div className="space-y-4">
               <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
