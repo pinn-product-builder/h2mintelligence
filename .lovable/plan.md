@@ -1,259 +1,345 @@
 
-# Plano: Sistema de Tarefas em OKRs + Gestao Dinamica de Setores
+# Plano: Data Hub Avançado com Upload, Mapeamento e Logs
 
 ## Resumo
-Transformar o sistema de Sub-KRs em Tarefas, permitir criacao de tarefas internas com atribuicao de profissionais, implementar historico automatico para OKRs concluidos, remover abas de setores do menu lateral, e adicionar gestao de setores na tela de Configuracoes (restrita a admin).
+Criar um sistema completo de gerenciamento de dados (Data Hub) com upload de arquivos CSV/XLSX, validação robusta, visualização prévia, mapeamento inteligente de campos, logs detalhados de importação, tratamento de erros amigável e controle de acesso baseado em roles.
 
 ---
 
-## O que sera implementado
+## O que será implementado
 
-### 1. Renomear Sub-KRs para Tarefas
-- Atualizar todos os textos e labels de "Sub-KR" para "Tarefa"
-- Manter a mesma estrutura hierarquica dentro dos Key Results
-- Ajustar badges, botoes e titulos nos componentes afetados
+### 1. Upload de Arquivos com Validação Avançada
+- Suporte a CSV e XLSX com validação de estrutura
+- Limite de tamanho configurável (padrão 10MB)
+- Validação de colunas obrigatórias
+- Detecção automática de encoding (UTF-8, ISO-8859-1)
+- Detecção de separador CSV (vírgula, ponto-e-vírgula, tab)
+- Feedback visual durante upload
 
-### 2. Criar Tarefas Internas em OKRs
-- Adicionar formulario para criar tarefa dentro de cada KR
-- Campo para selecionar profissional responsavel (lista de usuarios cadastrados)
-- Campos: titulo, descricao, responsavel, prazo, prioridade
-- Tarefas exibidas dentro do modal de detalhes do OKR
+### 2. Visualização Prévia Aprimorada
+- Tabela paginada com preview dos dados
+- Detecção automática de tipos de dados (texto, número, moeda, data)
+- Indicadores visuais de tipos por coluna
+- Estatísticas do arquivo (linhas, colunas, valores nulos)
+- Validação de dados com alertas visuais
 
-### 3. Historico/Delete Automatico de OKRs
-- OKRs com progresso = 100% movidos automaticamente para historico
-- Nova aba "Historico" na secao OKRs para consultar objetivos concluidos
-- Botao manual para arquivar OKRs antes de 100%
-- Possibilidade de restaurar OKRs do historico
+### 3. Mapeamento de Campos
+- Interface drag-and-drop para associar colunas
+- Sugestão automática baseada em nomes de colunas
+- Validação de tipos compatíveis
+- Transformações disponíveis (SUM, AVG, COUNT, etc.)
+- Preview do resultado do mapeamento
 
-### 4. Remover Abas/Telas de Setores
-- Eliminar secao "Setores" do Sidebar (comercial, financeiro, compras, marketing, operacoes)
-- Remover componente SectorSection.tsx das rotas
-- Limpar references no Index.tsx e sectionTitles
-- Setores continuam como atributo dos OKRs (para filtros)
+### 4. Logs Detalhados de Importação
+- Histórico completo de operações
+- Detalhes por importação (registros processados, ignorados, erros)
+- Filtros por data, status, usuário
+- Exportação de logs
+- Timeline visual de operações
 
-### 5. Gestao de Setores em Configuracoes (Admin)
-- Nova aba "Setores" dentro de ConfiguracoesSection
-- CRUD para criar, editar e excluir setores
-- Apenas usuarios com role "admin" podem acessar esta funcionalidade
-- Setores dinamicos usados no formulario de criacao de OKR
+### 5. Tratamento de Erros e Feedback
+- Mensagens de erro claras e acionáveis
+- Validação em tempo real
+- Rollback em caso de falha
+- Notificações toast para operações
+- Estados de loading amigáveis
+
+### 6. Controle de Acesso por Role
+- Verificação de permissões no acesso à seção Data Hub
+- Roles: Admin (acesso total), Analista (importação), Visualizador (somente leitura)
+- Feedback visual para usuários sem permissão
+- Auditoria de ações por usuário
 
 ---
 
 ## Arquivos a serem modificados/criados
 
-| Arquivo | Acao | Descricao |
+| Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `src/types/okr.ts` | Modificar | Adicionar interface Task, tornar Sector dinamico |
-| `src/contexts/AppContext.tsx` | Modificar | Adicionar estado/funcoes para tarefas, setores e historico OKRs |
-| `src/components/layout/Sidebar.tsx` | Modificar | Remover secao "Setores" |
-| `src/pages/Index.tsx` | Modificar | Remover rotas de setores |
-| `src/components/okr/OKRDetailModal.tsx` | Modificar | Renomear Sub-KRs para Tarefas, adicionar formulario |
-| `src/components/okr/SubKRList.tsx` | Renomear | Renomear para TaskList.tsx com textos atualizados |
-| `src/components/okr/TaskForm.tsx` | Criar | Formulario para criar tarefas com selecao de profissional |
-| `src/components/sections/ConfiguracoesSection.tsx` | Modificar | Adicionar aba "Setores" com CRUD (admin only) |
-| `src/components/sections/OKRsSection.tsx` | Modificar | Adicionar aba/filtro de historico |
-| `src/data/mockData.ts` | Modificar | Atualizar sectorLabels para ser dinamico |
+| `src/types/dataHub.ts` | Criar | Tipos para importação, logs e mapeamento |
+| `src/hooks/useDataImport.ts` | Criar | Hook para gerenciar importação com validação |
+| `src/hooks/useImportLogs.ts` | Criar | Hook para gerenciar logs de importação |
+| `src/components/data/AdvancedFileUpload.tsx` | Criar | Upload com validação e progresso |
+| `src/components/data/DataPreviewEnhanced.tsx` | Criar | Preview com estatísticas e validação |
+| `src/components/data/ColumnMapper.tsx` | Criar | Interface de mapeamento de campos |
+| `src/components/data/ImportLogViewer.tsx` | Criar | Visualização detalhada de logs |
+| `src/components/data/ImportWizard.tsx` | Criar | Wizard de importação passo-a-passo |
+| `src/components/sections/DataSourceSection.tsx` | Modificar | Integrar novos componentes e validação de role |
+| `src/contexts/AppContext.tsx` | Modificar | Adicionar logs detalhados e validação |
 
 ---
 
-## Detalhes Tecnicos
+## Detalhes Técnicos
 
-### Nova Interface Task
+### Novos Tipos (dataHub.ts)
 ```text
-Task {
+ImportLog {
   id: string
-  title: string
-  description?: string
-  assignedTo: string (ID do usuario)
-  assignedToName: string
-  dueDate?: string
-  priority: 'high' | 'medium' | 'low'
-  status: 'pending' | 'in-progress' | 'completed'
-  createdAt: string
+  sourceFile: string
+  importType: 'csv' | 'xlsx' | 'manual'
+  status: 'pending' | 'processing' | 'success' | 'partial' | 'error'
+  startedAt: string
   completedAt?: string
-  parentKRId: string (vinculo com Key Result)
+  userId: string
+  userName: string
+  totalRows: number
+  processedRows: number
+  skippedRows: number
+  errorRows: number
+  errors: ImportError[]
+  mapping?: FieldMapping
+  targetTable: string
+}
+
+ImportError {
+  row: number
+  column?: string
+  message: string
+  severity: 'warning' | 'error'
+  value?: string
+}
+
+FieldMapping {
+  sourceColumn: string
+  targetField: string
+  transformation?: 'none' | 'sum' | 'avg' | 'count' | 'date_format'
+  isRequired: boolean
+}
+
+ValidationResult {
+  isValid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  statistics: DataStatistics
+}
+
+DataStatistics {
+  totalRows: number
+  totalColumns: number
+  nullValues: number
+  uniqueValues: Record<string, number>
+  columnTypes: Record<string, 'text' | 'number' | 'date' | 'currency'>
 }
 ```
 
-### Tipo Sector Dinamico
+### Hook useDataImport
 ```text
-SectorConfig {
-  id: string
-  name: string
-  slug: string (identificador unico)
-  icon?: string
-  color?: string
-  createdAt: string
-  createdBy: string
+useDataImport {
+  // Estado
+  file: File | null
+  parseResult: ParseResult | null
+  validation: ValidationResult | null
+  mapping: FieldMapping[]
+  isLoading: boolean
+  step: 'upload' | 'preview' | 'mapping' | 'confirm' | 'complete'
+  
+  // Ações
+  uploadFile(file: File): Promise<void>
+  validateData(): ValidationResult
+  setMapping(mapping: FieldMapping[]): void
+  confirmImport(): Promise<ImportLog>
+  reset(): void
+  
+  // Utilitários
+  detectColumnTypes(): Record<string, string>
+  suggestMappings(): FieldMapping[]
+  previewTransformation(mapping: FieldMapping): DataRow[]
 }
-
-// Ao inves de tipo estatico, sectors virao do contexto
 ```
 
-### Novas Funcoes no AppContext
+### Interface ImportWizard
 ```text
-// Tarefas
-tasks: Task[]
-addTask(task): void
-updateTask(id, data): void
-deleteTask(id): void
-completeTask(id): void
-
-// Setores Dinamicos
-sectors: SectorConfig[]
-addSector(sector): void
-updateSector(id, data): void
-deleteSector(id): void
-
-// Historico OKRs
-archivedObjectives: Objective[]
-archiveObjective(id): void
-restoreObjective(id): void
-autoArchiveCompleted(): void (executa ao atualizar progresso)
-```
-
-### Formulario de Tarefa (TaskForm.tsx)
-```text
+Passo 1 - Upload:
 ┌────────────────────────────────────────────────────────┐
-│ Nova Tarefa                                            │
-├────────────────────────────────────────────────────────┤
+│ ┌──────────────────────────────────────────────────┐   │
+│ │                                                  │   │
+│ │     📄 Arraste um arquivo CSV ou Excel aqui     │   │
+│ │            ou clique para selecionar            │   │
+│ │                                                  │   │
+│ │         Formatos: .csv, .xlsx (max 10MB)        │   │
+│ └──────────────────────────────────────────────────┘   │
 │                                                        │
-│  Titulo *                                              │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ Ex: Preparar apresentacao para cliente          │  │
-│  └──────────────────────────────────────────────────┘  │
+│ Validações aplicadas:                                  │
+│ ✓ Estrutura do arquivo                                │
+│ ✓ Encoding (UTF-8 ou ISO-8859-1)                      │
+│ ✓ Limite de tamanho                                   │
+└────────────────────────────────────────────────────────┘
+
+Passo 2 - Preview:
+┌────────────────────────────────────────────────────────┐
+│ Estatísticas do Arquivo                                │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+│ │ 1.250    │ │ 8        │ │ 12       │ │ 2        │   │
+│ │ Linhas   │ │ Colunas  │ │ Nulos    │ │ Avisos   │   │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
 │                                                        │
-│  Descricao                                             │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ Detalhes adicionais da tarefa...                │  │
-│  └──────────────────────────────────────────────────┘  │
+│ Preview dos Dados (primeiras 20 linhas)                │
+│ ┌────────────────────────────────────────────────────┐ │
+│ │ # │ Mês     │ Valor   │ Meta    │ Região │ Status │ │
+│ │ 1 │ Jan/26  │ R$245K  │ R$250K  │ Sul    │ Ativo  │ │
+│ │ 2 │ Jan/26  │ R$380K  │ R$350K  │ Sudeste│ Ativo  │ │
+│ │...│ ...     │ ...     │ ...     │ ...    │ ...    │ │
+│ └────────────────────────────────────────────────────┘ │
 │                                                        │
-│  Responsavel *                                         │
-│  ┌───────────────────────────────────────────┐        │
-│  │ ▼ Selecionar profissional...              │        │
-│  └───────────────────────────────────────────┘        │
-│  Lista de usuarios cadastrados no sistema             │
+│ ⚠ 2 avisos encontrados                  [Ver Detalhes]│
+└────────────────────────────────────────────────────────┘
+
+Passo 3 - Mapeamento:
+┌────────────────────────────────────────────────────────┐
+│ Mapeamento de Campos                    [Auto-Mapear]  │
 │                                                        │
-│  Prazo              Prioridade                         │
-│  ┌─────────────┐    ┌─────────────┐                   │
-│  │ 15/02/2026  │    │ ▼ Media     │                   │
-│  └─────────────┘    └─────────────┘                   │
+│ Coluna do Arquivo    →    Campo do Sistema             │
+│ ┌────────────────┐       ┌────────────────┐            │
+│ │ Valor          │   →   │ Faturamento    │   [SUM]    │
+│ └────────────────┘       └────────────────┘            │
+│ ┌────────────────┐       ┌────────────────┐            │
+│ │ Meta           │   →   │ Meta Vendas    │   [AVG]    │
+│ └────────────────┘       └────────────────┘            │
+│ ┌────────────────┐       ┌────────────────┐            │
+│ │ Região         │   →   │ Centro Custo   │   [NONE]   │
+│ └────────────────┘       └────────────────┘            │
 │                                                        │
-│  [Cancelar]                     [Criar Tarefa]        │
+│ Campos obrigatórios:                                   │
+│ ✓ Valor  ✓ Meta  ✗ Data (não mapeado)                 │
+└────────────────────────────────────────────────────────┘
+
+Passo 4 - Confirmação:
+┌────────────────────────────────────────────────────────┐
+│ Resumo da Importação                                   │
+│                                                        │
+│ Arquivo: vendas_jan_2026.xlsx                          │
+│ Tabela destino: Faturamento Mensal                     │
+│ Registros a importar: 1.248                            │
+│ Campos mapeados: 6 de 8                                │
+│                                                        │
+│ ┌──────────────────────────────────────────────────┐   │
+│ │ ⚠ Esta ação irá substituir dados existentes     │   │
+│ │   do período Janeiro 2026.                       │   │
+│ └──────────────────────────────────────────────────┘   │
+│                                                        │
+│                    [Cancelar]  [Confirmar Importação]  │
 └────────────────────────────────────────────────────────┘
 ```
 
-### Aba Setores em Configuracoes (Admin Only)
+### Componente ImportLogViewer
 ```text
 ┌────────────────────────────────────────────────────────┐
-│ [Geral] [Integracao] [Notificacoes] [Seguranca]       │
-│ [Aparencia] [Setores]                                  │
+│ Logs de Importação                                     │
+├────────────────────────────────────────────────────────┤
+│ Filtros: [Todos ▼] [Últimos 7 dias ▼] [Buscar...]     │
 ├────────────────────────────────────────────────────────┤
 │                                                        │
-│ Gerenciamento de Setores              [+ Novo Setor]  │
+│ ● 29/01/2026 10:30 - vendas_jan.xlsx                  │
+│   ✓ Sucesso | 1.250 registros | Carlos Silva          │
+│   └─ [Expandir detalhes]                              │
 │                                                        │
-│ ┌─────────────────────────────────────────────────┐   │
-│ │ Comercial                             [✏️] [🗑️] │   │
-│ │ 4 OKRs vinculados                              │   │
-│ └─────────────────────────────────────────────────┘   │
-│ ┌─────────────────────────────────────────────────┐   │
-│ │ Financeiro                            [✏️] [🗑️] │   │
-│ │ 3 OKRs vinculados                              │   │
-│ └─────────────────────────────────────────────────┘   │
+│ ● 28/01/2026 14:15 - custos_operacionais.csv          │
+│   ⚠ Parcial | 890 de 920 registros | Ana Costa        │
+│   └─ 30 linhas ignoradas (dados inválidos)            │
+│      └─ Linha 45: Campo "valor" vazio                 │
+│      └─ Linha 67: Data inválida "31/02/2026"          │
+│      └─ [Ver todos os erros]                          │
 │                                                        │
-│ ⚠️ Setores com OKRs vinculados nao podem ser         │
-│    excluidos. Archive os OKRs primeiro.              │
+│ ● 27/01/2026 09:00 - estoque.xlsx                     │
+│   ✗ Erro | 0 registros | Pedro Santos                 │
+│   └─ Arquivo corrompido ou formato inválido           │
+│                                                        │
 └────────────────────────────────────────────────────────┘
 ```
 
-### Visualizacao de Tarefas no OKRDetailModal
+### Validação de Roles
 ```text
-┌────────────────────────────────────────────────────────┐
-│ [Key Results] [Tarefas] [Historico]                    │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│ TAREFAS (3)                        [+ Adicionar Tarefa]│
-│                                                        │
-│ ☑ Preparar relatorio mensal                           │
-│   👤 Ana Costa · 📅 10/02/2026 · 🔴 Alta              │
-│   Status: Concluida                                    │
-│                                                        │
-│ ☐ Contatar fornecedor principal                       │
-│   👤 Pedro Santos · 📅 15/02/2026 · 🟡 Media          │
-│   Status: Em progresso                                 │
-│                                                        │
-│ ☐ Revisar proposta comercial                          │
-│   👤 Maria Lima · 📅 20/02/2026 · 🟢 Baixa            │
-│   Status: Pendente                                     │
-└────────────────────────────────────────────────────────┘
+Função checkDataHubAccess(userRole):
+  switch(userRole):
+    case 'admin':
+      return { canView: true, canImport: true, canDelete: true, canExport: true }
+    case 'gestor':
+      return { canView: true, canImport: true, canDelete: false, canExport: true }
+    case 'analista':
+      return { canView: true, canImport: true, canDelete: false, canExport: true }
+    case 'visualizador':
+      return { canView: true, canImport: false, canDelete: false, canExport: false }
+    default:
+      return { canView: false, canImport: false, canDelete: false, canExport: false }
+
+Na seção DataSourceSection:
+  const { user } = useAuth()
+  const permissions = checkDataHubAccess(user?.role)
+  
+  if (!permissions.canView) {
+    return <AccessDeniedMessage />
+  }
+  
+  // Desabilitar botões baseado em permissões
+  <Button disabled={!permissions.canImport}>Nova Importação</Button>
 ```
 
-### Sidebar Atualizado (Sem Setores)
+### Validações de Arquivo
 ```text
-PRINCIPAL
-  Dashboard
-  OKRs
-  Indicadores
-  Data Source
+validateFile(file):
+  errors = []
+  
+  // Validar extensão
+  extension = file.name.split('.').pop().toLowerCase()
+  if (!['csv', 'xlsx', 'xls'].includes(extension)):
+    errors.push({ type: 'extension', message: 'Formato não suportado' })
+  
+  // Validar tamanho
+  if (file.size > MAX_SIZE_MB * 1024 * 1024):
+    errors.push({ type: 'size', message: 'Arquivo excede limite de XMB' })
+  
+  // Validar estrutura (após parse)
+  if (columns.length === 0):
+    errors.push({ type: 'structure', message: 'Nenhuma coluna detectada' })
+  
+  if (data.length === 0):
+    errors.push({ type: 'empty', message: 'Arquivo vazio' })
+  
+  return { isValid: errors.length === 0, errors }
 
-SISTEMA
-  Usuarios
-  Configuracoes
-
-(Secao "Setores" removida completamente)
+validateData(data, mapping):
+  warnings = []
+  errors = []
+  
+  for each row in data:
+    // Verificar campos obrigatórios
+    for each requiredField in mapping.filter(m => m.isRequired):
+      if (row[requiredField.sourceColumn] === null || empty):
+        errors.push({ row: index, column: requiredField, message: 'Campo obrigatório vazio' })
+    
+    // Validar tipos
+    for each field in mapping:
+      value = row[field.sourceColumn]
+      if (field.expectedType === 'number' && !isNumeric(value)):
+        warnings.push({ row: index, column: field, message: 'Valor não numérico' })
+      if (field.expectedType === 'date' && !isValidDate(value)):
+        warnings.push({ row: index, column: field, message: 'Data inválida' })
+  
+  return { errors, warnings }
 ```
 
 ---
 
-## Regras de Negocio
+## Fluxo de Implementação
 
-### Historico Automatico
-```text
-Quando objective.progress === 100:
-  1. Exibir modal de confirmacao
-  2. Se confirmado, mover para archivedObjectives
-  3. OKR some da listagem ativa
-  4. Acessivel via aba "Historico"
-```
-
-### Restricao Admin para Setores
-```text
-Na aba Setores de Configuracoes:
-  - Verificar useAuth().user.role === 'admin'
-  - Se nao for admin, ocultar aba ou mostrar mensagem
-  - Apenas admin pode criar/editar/excluir setores
-```
-
-### Exclusao de Setores
-```text
-Ao tentar excluir setor:
-  1. Verificar se existem OKRs vinculados
-  2. Se count > 0: bloquear exclusao, exibir aviso
-  3. Se count === 0: permitir exclusao
-```
-
----
-
-## Fluxo de Implementacao
-
-1. **Atualizar tipos** (okr.ts): adicionar Task, SectorConfig
-2. **Modificar AppContext**: estados e funcoes para tarefas, setores, historico
-3. **Renomear SubKRList para TaskList**: atualizar textos
-4. **Criar TaskForm**: formulario de criacao de tarefas
-5. **Atualizar OKRDetailModal**: nova aba Tarefas, renomear labels
-6. **Modificar Sidebar**: remover secao Setores
-7. **Atualizar Index.tsx**: limpar rotas de setores
-8. **Expandir ConfiguracoesSection**: nova aba Setores (admin)
-9. **Adicionar historico em OKRsSection**: aba para OKRs arquivados
-10. **Atualizar NewOKRForm**: usar setores dinamicos do contexto
+1. **Criar tipos** (dataHub.ts): Definir interfaces para logs, mapeamento e validação
+2. **Criar hooks** (useDataImport.ts, useImportLogs.ts): Lógica de importação e logs
+3. **Criar AdvancedFileUpload**: Upload com validação e feedback visual
+4. **Criar DataPreviewEnhanced**: Preview com estatísticas e alertas
+5. **Criar ColumnMapper**: Interface de mapeamento drag-and-drop
+6. **Criar ImportLogViewer**: Visualização detalhada de histórico
+7. **Criar ImportWizard**: Combinar componentes em wizard passo-a-passo
+8. **Atualizar DataSourceSection**: Integrar wizard e validação de roles
+9. **Atualizar AppContext**: Adicionar estado de logs detalhados
 
 ---
 
 ## Resultado Esperado
 
-- Tarefas podem ser criadas dentro de cada OKR/KR com responsavel atribuido
-- Terminologia "Sub-KR" substituida por "Tarefas" em toda interface
-- OKRs concluidos movidos automaticamente para historico
-- Menu lateral simplificado sem abas individuais de setores
-- Setores gerenciados dinamicamente em Configuracoes (apenas admin)
-- Formulario de OKR usa lista dinamica de setores
+- Upload intuitivo com validação em tempo real e feedback visual
+- Preview rico com estatísticas, tipos detectados e alertas de problemas
+- Mapeamento flexível com sugestões automáticas e transformações
+- Logs completos com detalhes de erros e histórico de operações
+- Tratamento de erros amigável com mensagens claras e acionáveis
+- Controle de acesso por role impedindo ações não autorizadas
+- Experiência consistente seguindo o design system existente
