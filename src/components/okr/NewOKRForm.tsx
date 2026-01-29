@@ -23,7 +23,7 @@ const keyResultSchema = z.object({
   target: z.coerce.number().min(0, 'Meta deve ser positiva'),
   baseline: z.coerce.number().min(0, 'Baseline deve ser positivo'),
   unit: z.string().min(1, 'Unidade é obrigatória'),
-  owner: z.string().min(2, 'Responsável é obrigatório'),
+  ownerId: z.string().min(1, 'Responsável é obrigatório'),
 });
 
 const okrFormSchema = z.object({
@@ -34,7 +34,7 @@ const okrFormSchema = z.object({
     .min(20, 'Descrição deve ter pelo menos 20 caracteres')
     .max(500, 'Descrição deve ter no máximo 500 caracteres'),
   sector: z.string().min(1, 'Selecione um setor'),
-  owner: z.string().min(2, 'Responsável é obrigatório'),
+  ownerId: z.string().min(1, 'Responsável é obrigatório'),
   period: z.string().min(1, 'Período é obrigatório'),
   priority: z.enum(['high', 'medium', 'low'], {
     required_error: 'Selecione uma prioridade',
@@ -82,11 +82,11 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
       title: '',
       description: '',
       sector: undefined,
-      owner: '',
-      period: 'Q1 2026',
+      ownerId: '',
+      period: '',
       priority: 'medium',
       keyResults: [
-        { title: '', type: 'numeric', target: 0, baseline: 0, unit: '', owner: '' }
+        { title: '', type: 'numeric', target: 0, baseline: 0, unit: '', ownerId: '' }
       ],
     },
   });
@@ -122,13 +122,18 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
     if (autoCreateKRs && parsedDocument && selectedRows.length > 0) {
       const newKRs = selectedRows.slice(0, 5).map(rowIndex => {
         const row = parsedDocument.data[rowIndex];
+        // Try to match owner name to profile ID
+        const ownerName = mapping.krOwner ? String(row[mapping.krOwner] || '') : '';
+        const matchedProfile = profiles.find(p => 
+          p.name.toLowerCase() === ownerName.toLowerCase()
+        );
         return {
           title: mapping.krTitle ? String(row[mapping.krTitle] || '') : '',
           type: 'numeric' as const,
           target: mapping.krTarget ? Number(row[mapping.krTarget]) || 0 : 0,
           baseline: mapping.krBaseline ? Number(row[mapping.krBaseline]) || 0 : 0,
           unit: mapping.krUnit ? String(row[mapping.krUnit] || '') : '',
-          owner: mapping.krOwner ? String(row[mapping.krOwner] || '') : '',
+          ownerId: matchedProfile?.id || '',
         };
       }).filter(kr => kr.title || kr.target > 0);
 
@@ -153,17 +158,18 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
   const onSubmit = async (data: OKRFormData) => {
     setIsSubmitting(true);
     try {
-      // Create the objective first
+      // Create the objective first with owner_id
       const newObjective = await createObjective.mutateAsync({
         title: data.title,
         description: data.description,
         sector_id: data.sector,
         cycle_id: data.period,
+        owner_id: data.ownerId,
         status: 'on-track',
         progress: 0,
       });
 
-      // Then create the key results
+      // Then create the key results with owner_id
       for (const kr of data.keyResults) {
         await createKeyResult.mutateAsync({
           objective_id: newObjective.id,
@@ -172,6 +178,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
           target_value: kr.target,
           current_value: 0,
           unit: kr.unit,
+          owner_id: kr.ownerId,
           status: 'on-track',
         });
       }
@@ -330,11 +337,11 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="owner"
+                  name="ownerId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Responsável *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione o responsável" />
@@ -342,7 +349,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                         </FormControl>
                         <SelectContent>
                           {profiles.map(profile => (
-                            <SelectItem key={profile.id} value={profile.name}>
+                            <SelectItem key={profile.id} value={profile.id}>
                               {profile.name}
                             </SelectItem>
                           ))}
@@ -415,7 +422,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ title: '', type: 'numeric', target: 0, baseline: 0, unit: '', owner: '' })}
+                  onClick={() => append({ title: '', type: 'numeric', target: 0, baseline: 0, unit: '', ownerId: '' })}
                   disabled={fields.length >= 5}
                 >
                   <Plus className="w-4 h-4 mr-1" />
@@ -539,11 +546,11 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
 
                       <FormField
                         control={form.control}
-                        name={`keyResults.${index}.owner`}
+                        name={`keyResults.${index}.ownerId`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Responsável pelo KR *</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Selecione o responsável" />
@@ -551,7 +558,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                               </FormControl>
                               <SelectContent>
                                 {profiles.map(profile => (
-                                  <SelectItem key={profile.id} value={profile.name}>
+                                  <SelectItem key={profile.id} value={profile.id}>
                                     {profile.name}
                                   </SelectItem>
                                 ))}

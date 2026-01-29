@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, 
   Eye, 
@@ -80,54 +81,98 @@ export function ImportWizard({ open, onOpenChange, onImportComplete }: ImportWiz
   const handleConfirmImport = async () => {
     setIsConfirming(true);
     
-    // Simulate import processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
     const now = new Date();
     const hasErrors = state.validationResult?.errors.length || 0;
-    const hasWarnings = state.validationResult?.warnings.length || 0;
     
-    const importErrors = (state.validationResult?.errors || [])
-      .filter(e => e.row !== undefined)
-      .slice(0, 20)
-      .map(e => ({
-        row: e.row!,
-        column: e.column,
-        message: e.message,
-        severity: e.severity,
-        value: e.value,
-      }));
-    
-    addLog({
-      sourceFile: state.file?.name || 'Arquivo',
-      importType: state.file?.name.endsWith('.csv') ? 'csv' : 'xlsx',
-      status: hasErrors > 0 ? 'partial' : 'success',
-      startedAt: now.toISOString(),
-      completedAt: new Date().toISOString(),
-      userId: user?.id || 'unknown',
-      userName: user?.name || 'Usuário',
-      totalRows: state.data.length,
-      processedRows: state.data.length - (hasErrors > 0 ? Math.min(hasErrors, 10) : 0),
-      skippedRows: hasErrors > 0 ? Math.min(hasErrors, 10) : 0,
-      errorRows: hasErrors,
-      errors: importErrors,
-      targetTable: TARGET_TABLES.find(t => t.id === state.targetTable)?.label || state.targetTable,
-    });
-    
-    toast({
-      title: 'Importação concluída!',
-      description: `${state.data.length} registros importados com sucesso.`,
-    });
-    
-    setIsConfirming(false);
-    setStep('complete');
-    onImportComplete?.();
-    
-    // Close after a moment
-    setTimeout(() => {
-      reset();
-      onOpenChange(false);
-    }, 2000);
+    try {
+      // Get current user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      // 1. Insert the imported data into the database
+      const { error: metricsError } = await supabase
+        .from('imported_metrics' as any)
+        .insert({
+          source_file: state.file?.name || 'Arquivo',
+          target_table: state.targetTable,
+          data: state.data,
+          imported_by: authUser?.id,
+          total_rows: state.data.length,
+        } as any);
+      
+      if (metricsError) throw metricsError;
+      
+      // 2. Create the import log in the database
+      const importErrors = (state.validationResult?.errors || [])
+        .filter(e => e.row !== undefined)
+        .slice(0, 20)
+        .map(e => ({
+          row: e.row!,
+          column: e.column,
+          message: e.message,
+          severity: e.severity,
+          value: e.value,
+        }));
+      
+      const { error: logError } = await supabase
+        .from('import_logs' as any)
+        .insert({
+          source_file: state.file?.name || 'Arquivo',
+          import_type: state.file?.name.endsWith('.csv') ? 'csv' : 'xlsx',
+          target_table: TARGET_TABLES.find(t => t.id === state.targetTable)?.label || state.targetTable,
+          status: hasErrors > 0 ? 'partial' : 'success',
+          started_at: now.toISOString(),
+          completed_at: new Date().toISOString(),
+          imported_by: authUser?.id,
+          total_rows: state.data.length,
+          processed_rows: state.data.length - (hasErrors > 0 ? Math.min(hasErrors, 10) : 0),
+          skipped_rows: hasErrors > 0 ? Math.min(hasErrors, 10) : 0,
+          error_rows: hasErrors,
+          errors: importErrors,
+          mappings: state.mappings,
+        } as any);
+      
+      if (logError) throw logError;
+      
+      // Also add to local state for immediate UI update
+      addLog({
+        sourceFile: state.file?.name || 'Arquivo',
+        importType: state.file?.name.endsWith('.csv') ? 'csv' : 'xlsx',
+        status: hasErrors > 0 ? 'partial' : 'success',
+        startedAt: now.toISOString(),
+        completedAt: new Date().toISOString(),
+        userId: authUser?.id || 'unknown',
+        userName: user?.name || 'Usuário',
+        totalRows: state.data.length,
+        processedRows: state.data.length - (hasErrors > 0 ? Math.min(hasErrors, 10) : 0),
+        skippedRows: hasErrors > 0 ? Math.min(hasErrors, 10) : 0,
+        errorRows: hasErrors,
+        errors: importErrors,
+        targetTable: TARGET_TABLES.find(t => t.id === state.targetTable)?.label || state.targetTable,
+      });
+      
+      toast({
+        title: 'Importação concluída!',
+        description: `${state.data.length} registros importados e salvos com sucesso.`,
+      });
+      
+      setStep('complete');
+      onImportComplete?.();
+      
+      // Close after a moment
+      setTimeout(() => {
+        reset();
+        onOpenChange(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: 'Erro na importação',
+        description: 'Não foi possível salvar os dados. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsConfirming(false);
+    }
   };
   
   const handleClose = () => {

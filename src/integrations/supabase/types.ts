@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      import_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_rows: number
+          errors: Json | null
+          id: string
+          import_type: string
+          imported_by: string | null
+          mappings: Json | null
+          processed_rows: number
+          skipped_rows: number
+          source_file: string
+          started_at: string
+          status: string
+          target_table: string
+          total_rows: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_rows?: number
+          errors?: Json | null
+          id?: string
+          import_type?: string
+          imported_by?: string | null
+          mappings?: Json | null
+          processed_rows?: number
+          skipped_rows?: number
+          source_file: string
+          started_at?: string
+          status?: string
+          target_table: string
+          total_rows?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_rows?: number
+          errors?: Json | null
+          id?: string
+          import_type?: string
+          imported_by?: string | null
+          mappings?: Json | null
+          processed_rows?: number
+          skipped_rows?: number
+          source_file?: string
+          started_at?: string
+          status?: string
+          target_table?: string
+          total_rows?: number
+        }
+        Relationships: []
+      }
+      imported_metrics: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          imported_at: string
+          imported_by: string | null
+          source_file: string
+          target_table: string
+          total_rows: number
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          source_file: string
+          target_table: string
+          total_rows?: number
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          source_file?: string
+          target_table?: string
+          total_rows?: number
+        }
+        Relationships: []
+      }
       key_results: {
         Row: {
           created_at: string | null
