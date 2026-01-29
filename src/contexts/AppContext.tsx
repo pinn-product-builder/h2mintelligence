@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Objective, Sector } from '@/types/okr';
+import { Objective, Sector, OKRCycle } from '@/types/okr';
 import { mockObjectives } from '@/data/mockData';
 
 interface DataSource {
@@ -26,6 +26,14 @@ interface AppContextType {
   objectives: Objective[];
   addObjective: (objective: Omit<Objective, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'status'> & { keyResults: any[] }) => void;
   updateObjectiveProgress: (id: string, progress: number) => void;
+  
+  // Cycles
+  cycles: OKRCycle[];
+  archivedCycles: OKRCycle[];
+  addCycle: (cycle: Omit<OKRCycle, 'id' | 'createdAt'>) => void;
+  updateCycle: (id: string, data: Partial<OKRCycle>) => void;
+  deleteCycle: (id: string) => void;
+  archiveCycle: (id: string) => void;
   
   // Data Sources
   dataSources: DataSource[];
@@ -105,6 +113,13 @@ const initialImportHistory: ImportHistory[] = [
   { id: '5', source: 'Entrada Manual - Metas', date: '2026-01-27 16:45', records: 12, status: 'success', user: 'Ana Costa' },
 ];
 
+const initialCycles: OKRCycle[] = [
+  { id: 'q1-2026', label: 'Q1 2026', startDate: '2026-01-01', endDate: '2026-03-31', isActive: true, isArchived: false, createdAt: '2025-12-01' },
+  { id: 'q2-2026', label: 'Q2 2026', startDate: '2026-04-01', endDate: '2026-06-30', isActive: false, isArchived: false, createdAt: '2025-12-01' },
+  { id: 'q3-2026', label: 'Q3 2026', startDate: '2026-07-01', endDate: '2026-09-30', isActive: false, isArchived: false, createdAt: '2025-12-01' },
+  { id: 'q4-2026', label: 'Q4 2026', startDate: '2026-10-01', endDate: '2026-12-31', isActive: false, isArchived: false, createdAt: '2025-12-01' },
+];
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -112,6 +127,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dataSources, setDataSources] = useState<DataSource[]>(initialDataSources);
   const [importHistory, setImportHistory] = useState<ImportHistory[]>(initialImportHistory);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [cycles, setCycles] = useState<OKRCycle[]>(initialCycles);
+  const [archivedCycles, setArchivedCycles] = useState<OKRCycle[]>([]);
 
   const addObjective = (newOkr: Omit<Objective, 'id' | 'createdAt' | 'updatedAt' | 'progress' | 'status'> & { keyResults: any[] }) => {
     const now = new Date().toISOString().split('T')[0];
@@ -145,6 +162,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  // Cycle management functions
+  const addCycle = (cycle: Omit<OKRCycle, 'id' | 'createdAt'>) => {
+    const newCycle: OKRCycle = {
+      ...cycle,
+      id: `cycle-${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setCycles(prev => [...prev, newCycle]);
+  };
+
+  const updateCycle = (id: string, data: Partial<OKRCycle>) => {
+    setCycles(prev => prev.map(c => (c.id === id ? { ...c, ...data } : c)));
+  };
+
+  const deleteCycle = (id: string) => {
+    setCycles(prev => prev.filter(c => c.id !== id));
+  };
+
+  const archiveCycle = (id: string) => {
+    const cycleToArchive = cycles.find(c => c.id === id);
+    if (cycleToArchive) {
+      setCycles(prev => prev.filter(c => c.id !== id));
+      setArchivedCycles(prev => [...prev, { ...cycleToArchive, isArchived: true }]);
+    }
+  };
+
   const addDataSource = (source: Omit<DataSource, 'id'>) => {
     const newSource: DataSource = {
       ...source,
@@ -169,7 +212,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDataSources(prev => prev.map(ds => {
       if (ds.id === id) {
         const newRecords = ds.records + Math.floor(Math.random() * 50);
-        // Add to import history
         const record: ImportHistory = {
           id: `imp-${Date.now()}`,
           source: ds.name,
@@ -213,6 +255,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       objectives,
       addObjective,
       updateObjectiveProgress,
+      cycles,
+      archivedCycles,
+      addCycle,
+      updateCycle,
+      deleteCycle,
+      archiveCycle,
       dataSources,
       addDataSource,
       removeDataSource,

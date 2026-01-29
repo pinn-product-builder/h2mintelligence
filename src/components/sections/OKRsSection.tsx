@@ -1,41 +1,43 @@
 import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { sectorLabels } from '@/data/mockData';
 import { OKRCard } from '@/components/dashboard/OKRCard';
 import { NewOKRForm } from '@/components/okr/NewOKRForm';
+import { CycleManager } from '@/components/okr/CycleManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, LayoutGrid, List, Target, CheckCircle, AlertTriangle, AlertCircle, EyeOff, Eye } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-const cycles = [
-  { id: 'q1-2026', label: 'Q1 2026', active: true },
-  { id: 'q2-2026', label: 'Q2 2026', active: false },
-  { id: 'q3-2026', label: 'Q3 2026', active: false },
-  { id: 'q4-2026', label: 'Q4 2026', active: false },
-];
+import { Search, LayoutGrid, List, Target, CheckCircle, AlertTriangle, AlertCircle, EyeOff, Eye, FolderArchive } from 'lucide-react';
 
 export function OKRsSection() {
-  const { objectives } = useApp();
+  const { objectives, cycles, archivedCycles } = useApp();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
-  const [selectedCycle, setSelectedCycle] = useState('q1-2026');
+  const [selectedCycle, setSelectedCycle] = useState(() => {
+    const activeCycle = cycles.find(c => c.isActive && !c.isArchived);
+    return activeCycle?.label || cycles.filter(c => !c.isArchived)[0]?.label || '';
+  });
+
+  const activeCycles = cycles.filter(c => !c.isArchived);
 
   const filteredObjectives = objectives.filter(obj => {
     const matchesSearch = obj.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || obj.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesCycle = obj.period === selectedCycle;
+    return matchesSearch && matchesStatus && matchesCycle;
   });
 
+  const cycleObjectives = objectives.filter(obj => obj.period === selectedCycle);
   const stats = {
-    total: objectives.length,
-    onTrack: objectives.filter(o => o.status === 'on-track').length,
-    attention: objectives.filter(o => o.status === 'attention').length,
-    critical: objectives.filter(o => o.status === 'critical').length,
+    total: cycleObjectives.length,
+    onTrack: cycleObjectives.filter(o => o.status === 'on-track').length,
+    attention: cycleObjectives.filter(o => o.status === 'attention').length,
+    critical: cycleObjectives.filter(o => o.status === 'critical').length,
+  };
+
+  const getOKRCountForCycle = (cycleLabel: string) => {
+    return objectives.filter(obj => obj.period === cycleLabel).length;
   };
 
   return (
@@ -143,49 +145,59 @@ export function OKRsSection() {
         </div>
       </div>
 
-      {/* Cycle Selector - Apenas ciclos atuais e futuros */}
-      <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-lg w-fit">
-        {cycles.map((cycle) => (
-          <button
-            key={cycle.id}
-            onClick={() => setSelectedCycle(cycle.id)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium rounded-md transition-all",
-              selectedCycle === cycle.id
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-            )}
-          >
-            {cycle.label}
-            {cycle.active && (
-              <span className="ml-2 w-2 h-2 rounded-full bg-success inline-block" />
-            )}
-          </button>
-        ))}
+      {/* Cycle Selector - Dropdown dinâmico */}
+      <div className="flex items-center gap-3">
+        <Select value={selectedCycle} onValueChange={setSelectedCycle}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Selecione o período" />
+          </SelectTrigger>
+          <SelectContent>
+            {activeCycles.map((cycle) => {
+              const okrCount = getOKRCountForCycle(cycle.label);
+              return (
+                <SelectItem key={cycle.id} value={cycle.label}>
+                  <div className="flex items-center gap-2">
+                    <span>{cycle.label}</span>
+                    {cycle.isActive && (
+                      <span className="w-2 h-2 rounded-full bg-success" />
+                    )}
+                    <span className="text-muted-foreground text-xs">
+                      ({okrCount} OKR{okrCount !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+        <CycleManager />
       </div>
 
       {/* OKRs Content */}
       <div>
-        {selectedCycle === 'q1-2026' ? (
-          <>
-            <div className={viewMode === 'grid' ? 'grid md:grid-cols-2 gap-4' : 'space-y-4'}>
-              {filteredObjectives.map((objective, index) => (
-                <OKRCard key={objective.id} objective={objective} index={index} />
-              ))}
-            </div>
-            
-            {filteredObjectives.length === 0 && (
-              <div className="card-elevated p-8 text-center text-muted-foreground">
-                <p>Nenhum OKR encontrado com os filtros aplicados.</p>
-              </div>
-            )}
-          </>
+        {filteredObjectives.length > 0 ? (
+          <div className={viewMode === 'grid' ? 'grid md:grid-cols-2 gap-4' : 'space-y-4'}>
+            {filteredObjectives.map((objective, index) => (
+              <OKRCard key={objective.id} objective={objective} index={index} />
+            ))}
+          </div>
         ) : (
           <div className="card-elevated p-8 text-center text-muted-foreground">
-            <p>Ciclo futuro. Planejamento ainda não iniciado.</p>
+            <p>Nenhum OKR encontrado para este ciclo.</p>
           </div>
         )}
       </div>
+
+      {/* Rodapé informativo sobre histórico */}
+      {archivedCycles.length > 0 && (
+        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+          <FolderArchive className="w-4 h-4" />
+          <span>
+            {archivedCycles.length} período{archivedCycles.length !== 1 ? 's' : ''} arquivado{archivedCycles.length !== 1 ? 's' : ''}.
+            Ver em: <strong>Configurações &gt; Histórico de Ciclos</strong>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -52,12 +52,6 @@ const sectorOptions = [
   { value: 'diretoria', label: 'Diretoria' },
 ];
 
-const periodOptions = [
-  { value: 'Q1 2026', label: 'Q1 2026 (Jan-Mar)' },
-  { value: 'Q2 2026', label: 'Q2 2026 (Abr-Jun)' },
-  { value: 'Q3 2026', label: 'Q3 2026 (Jul-Set)' },
-  { value: 'Q4 2026', label: 'Q4 2026 (Out-Dez)' },
-];
 
 const priorityOptions = [
   { value: 'high', label: 'Alta', color: 'text-status-critical' },
@@ -82,7 +76,9 @@ interface NewOKRFormProps {
 
 export function NewOKRForm({ trigger }: NewOKRFormProps) {
   const [open, setOpen] = useState(false);
-  const { addObjective } = useApp();
+  const { addObjective, cycles } = useApp();
+  
+  const activeCycles = cycles.filter(c => !c.isArchived);
 
   const form = useForm<OKRFormData>({
     resolver: zodResolver(okrFormSchema),
@@ -267,9 +263,9 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {periodOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
+                          {activeCycles.map(cycle => (
+                            <SelectItem key={cycle.id} value={cycle.label}>
+                              {cycle.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
