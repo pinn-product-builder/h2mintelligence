@@ -1,5 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useImportLogs } from '@/hooks/useImportLogs';
+import { checkDataHubAccess } from '@/lib/dataHubPermissions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FileDropZone } from '@/components/data/FileDropZone';
-import { DataPreviewTable } from '@/components/data/DataPreviewTable';
-import { useFileParser } from '@/hooks/useFileParser';
+import { ImportWizard } from '@/components/data/ImportWizard';
+import { ImportLogViewer } from '@/components/data/ImportLogViewer';
 import { toast } from '@/hooks/use-toast';
 import { 
   Upload, 
@@ -26,7 +28,8 @@ import {
   Edit,
   Table as TableIcon,
   Download,
-  Loader2
+  Lock,
+  History
 } from 'lucide-react';
 
 interface DataMapping {
@@ -46,20 +49,37 @@ const mockMappings: DataMapping[] = [
 ];
 
 export function DataSourceSection() {
-  const { dataSources, addDataSource, removeDataSource, syncDataSource, importHistory, addImportRecord } = useApp();
+  const { user } = useAuth();
+  const { dataSources, addDataSource, removeDataSource, syncDataSource } = useApp();
+  const { logs, filter, setFilter, deleteLog, stats } = useImportLogs();
+  const permissions = checkDataHubAccess(user?.role);
+  
   const [activeTab, setActiveTab] = useState('sources');
   const [newSourceOpen, setNewSourceOpen] = useState(false);
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
   const [newSourceName, setNewSourceName] = useState('');
   const [newSourceTable, setNewSourceTable] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [manualMetric, setManualMetric] = useState('');
   const [manualValue, setManualValue] = useState('');
   const [manualUnit, setManualUnit] = useState('brl');
   const [manualSector, setManualSector] = useState('');
-  const [manualDate, setManualDate] = useState('');
   const [manualNotes, setManualNotes] = useState('');
-  
-  const { parseFile, clearResult, parseResult, isLoading: isParsing } = useFileParser();
+
+  // Access denied view
+  if (!permissions.canView) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Lock className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Acesso Restrito</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Você não tem permissão para acessar o Data Hub. 
+          Entre em contato com o administrador para solicitar acesso.
+        </p>
+      </div>
+    );
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -110,66 +130,11 @@ export function DataSourceSection() {
     setNewSourceTable('');
   };
 
-  const handleFileSelect = async (file: File) => {
-    setSelectedFile(file);
-    setActiveTab('import');
-    await parseFile(file);
-  };
-
-  const handleClearFile = () => {
-    setSelectedFile(null);
-    clearResult();
-  };
-
-  const handleConfirmImport = () => {
-    if (!selectedFile || !parseResult) return;
-    
-    const now = new Date();
-    const formattedDate = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-    
-    addImportRecord({
-      source: selectedFile.name,
-      date: formattedDate,
-      records: parseResult.data.length,
-      status: 'success',
-      user: 'Usuário Atual',
-    });
-    
-    // Also add as a new data source
-    addDataSource({
-      name: selectedFile.name.replace(/\.(csv|xlsx|xls)$/i, ''),
-      type: 'csv',
-      status: 'connected',
-      lastSync: formattedDate,
-      records: parseResult.data.length,
-      tables: [parseResult.columns.slice(0, 3).join(', ')],
-    });
-    
-    toast({
-      title: 'Importação concluída!',
-      description: `${parseResult.data.length} registros importados de "${selectedFile.name}".`,
-    });
-    
-    handleClearFile();
-    setActiveTab('sources');
-  };
-
   const handleManualEntry = () => {
     if (!manualMetric || !manualValue || !manualSector) {
       toast({ title: 'Erro', description: 'Preencha todos os campos obrigatórios.', variant: 'destructive' });
       return;
     }
-    
-    const now = new Date();
-    const formattedDate = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-    
-    addImportRecord({
-      source: 'Entrada Manual',
-      date: formattedDate,
-      records: 1,
-      status: 'success',
-      user: 'Usuário Atual',
-    });
     
     toast({
       title: 'Registro adicionado!',
@@ -195,11 +160,20 @@ export function DataSourceSection() {
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex flex-wrap gap-3">
+        <Button 
+          className="gradient-accent"
+          onClick={() => setImportWizardOpen(true)}
+          disabled={!permissions.canImport}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Importar Dados
+        </Button>
+        
         <Dialog open={newSourceOpen} onOpenChange={setNewSourceOpen}>
           <DialogTrigger asChild>
-            <Button className="gradient-accent">
+            <Button variant="outline" disabled={!permissions.canImport}>
               <Plus className="w-4 h-4 mr-2" />
-              Nova Planilha
+              Nova Fonte
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -250,13 +224,9 @@ export function DataSourceSection() {
             <TableIcon className="w-4 h-4 mr-2" />
             Mapeamentos
           </TabsTrigger>
-          <TabsTrigger value="import" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Upload className="w-4 h-4 mr-2" />
-            Importação
-          </TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Clock className="w-4 h-4 mr-2" />
-            Histórico ({importHistory.length})
+          <TabsTrigger value="logs" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <History className="w-4 h-4 mr-2" />
+            Logs ({stats.total})
           </TabsTrigger>
         </TabsList>
 
@@ -306,6 +276,7 @@ export function DataSourceSection() {
                           size="icon" 
                           className="h-8 w-8 text-destructive"
                           onClick={() => removeDataSource(source.id)}
+                          disabled={!permissions.canDelete}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -321,7 +292,7 @@ export function DataSourceSection() {
                 <CardContent className="p-8 text-center text-muted-foreground">
                   <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Nenhuma fonte de dados configurada.</p>
-                  <p className="text-sm">Clique em "Nova Planilha" para adicionar.</p>
+                  <p className="text-sm">Clique em "Importar Dados" para adicionar.</p>
                 </CardContent>
               </Card>
             )}
@@ -337,7 +308,7 @@ export function DataSourceSection() {
                   <CardTitle className="text-lg">Mapeamento de Campos</CardTitle>
                   <CardDescription>Configure como os dados das fontes alimentam as métricas</CardDescription>
                 </div>
-                <Button size="sm">
+                <Button size="sm" disabled={!permissions.canManageMappings}>
                   <Plus className="w-4 h-4 mr-2" />
                   Novo Mapeamento
                 </Button>
@@ -364,10 +335,10 @@ export function DataSourceSection() {
                       </TableCell>
                       <TableCell>{getStatusBadge(mapping.status)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={!permissions.canManageMappings}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={!permissions.canManageMappings}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </TableCell>
@@ -379,223 +350,24 @@ export function DataSourceSection() {
           </Card>
         </TabsContent>
 
-        {/* Importação */}
-        <TabsContent value="import" className="mt-6">
-          <div className="space-y-6">
-            {/* File Drop Zone */}
-            {!parseResult && (
-              <div className="grid lg:grid-cols-2 gap-6">
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Upload className="w-5 h-5" />
-                      Upload de Arquivo
-                    </CardTitle>
-                    <CardDescription>Arraste e solte ou selecione um arquivo CSV/Excel</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FileDropZone
-                      onFileSelect={handleFileSelect}
-                      selectedFile={selectedFile}
-                      onClearFile={handleClearFile}
-                    />
-                    
-                    {isParsing && (
-                      <div className="mt-4 flex items-center justify-center gap-2 text-muted-foreground">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Processando arquivo...</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <TableIcon className="w-5 h-5" />
-                      Entrada Manual de Dados
-                    </CardTitle>
-                    <CardDescription>Adicione valores diretamente</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label>Métrica *</Label>
-                      <Select value={manualMetric} onValueChange={setManualMetric}>
-                        <SelectTrigger className="mt-1.5">
-                          <SelectValue placeholder="Selecione a métrica..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="faturamento">Faturamento Mensal</SelectItem>
-                          <SelectItem value="ebitda">Margem EBITDA</SelectItem>
-                          <SelectItem value="giro">Giro de Estoque</SelectItem>
-                          <SelectItem value="leads">Leads Qualificados</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label>Valor *</Label>
-                        <Input 
-                          type="number" 
-                          placeholder="0.00" 
-                          className="mt-1.5"
-                          value={manualValue}
-                          onChange={(e) => setManualValue(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Unidade</Label>
-                        <Select value={manualUnit} onValueChange={setManualUnit}>
-                          <SelectTrigger className="mt-1.5">
-                            <SelectValue placeholder="Unidade" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="brl">R$</SelectItem>
-                            <SelectItem value="percent">%</SelectItem>
-                            <SelectItem value="unit">Unidades</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Data de Referência</Label>
-                      <Input 
-                        type="date" 
-                        className="mt-1.5"
-                        value={manualDate}
-                        onChange={(e) => setManualDate(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Setor *</Label>
-                      <Select value={manualSector} onValueChange={setManualSector}>
-                        <SelectTrigger className="mt-1.5">
-                          <SelectValue placeholder="Selecione o setor..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="comercial">Comercial</SelectItem>
-                          <SelectItem value="financeiro">Financeiro</SelectItem>
-                          <SelectItem value="compras">Compras</SelectItem>
-                          <SelectItem value="marketing">Marketing</SelectItem>
-                          <SelectItem value="operacoes">Operações</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Observações</Label>
-                      <Input 
-                        placeholder="Notas sobre este registro..." 
-                        className="mt-1.5"
-                        value={manualNotes}
-                        onChange={(e) => setManualNotes(e.target.value)}
-                      />
-                    </div>
-                    <Button className="w-full" onClick={handleManualEntry}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Registro
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* Data Preview Table */}
-            {parseResult && parseResult.data.length > 0 && selectedFile && (
-              <DataPreviewTable
-                data={parseResult.data}
-                columns={parseResult.columns}
-                fileName={selectedFile.name}
-                onConfirm={handleConfirmImport}
-                onCancel={handleClearFile}
-                isLoading={isParsing}
-              />
-            )}
-
-            {/* Templates Download */}
-            <Card className="card-elevated">
-              <CardHeader>
-                <CardTitle className="text-lg">Templates para Importação</CardTitle>
-                <CardDescription>Baixe os modelos padronizados para cada tipo de dado</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {['Faturamento', 'Custos', 'Metas OKR', 'Estoque'].map((template) => (
-                    <Button 
-                      key={template} 
-                      variant="outline" 
-                      className="justify-start h-auto py-3"
-                      onClick={() => toast({ title: 'Download iniciado', description: `Template ${template} baixado com sucesso.` })}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      <div className="text-left">
-                        <div className="font-medium">{template}</div>
-                        <div className="text-xs text-muted-foreground">template.xlsx</div>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Histórico */}
-        <TabsContent value="history" className="mt-6">
-          <Card className="card-elevated">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">Histórico de Importações</CardTitle>
-                  <CardDescription>Registro de todas as sincronizações e importações</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Select defaultValue="all">
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Filtrar fonte" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as fontes</SelectItem>
-                      <SelectItem value="csv">Planilhas</SelectItem>
-                      <SelectItem value="manual">Manual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fonte</TableHead>
-                    <TableHead>Data/Hora</TableHead>
-                    <TableHead>Registros</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Usuário</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {importHistory.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.source}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.date}</TableCell>
-                      <TableCell>{item.records.toLocaleString('pt-BR')}</TableCell>
-                      <TableCell>{getStatusBadge(item.status)}</TableCell>
-                      <TableCell>{item.user}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              
-              {importHistory.length === 0 && (
-                <div className="p-8 text-center text-muted-foreground">
-                  <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhuma importação realizada ainda.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Logs */}
+        <TabsContent value="logs" className="mt-6">
+          <ImportLogViewer
+            logs={logs}
+            filter={filter}
+            onFilterChange={setFilter}
+            onDeleteLog={permissions.canDelete ? deleteLog : undefined}
+            stats={stats}
+          />
         </TabsContent>
       </Tabs>
+
+      {/* Import Wizard Modal */}
+      <ImportWizard
+        open={importWizardOpen}
+        onOpenChange={setImportWizardOpen}
+        onImportComplete={() => setActiveTab('logs')}
+      />
     </div>
   );
 }
