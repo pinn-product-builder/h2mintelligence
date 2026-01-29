@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useApp } from '@/contexts/AppContext';
+import { useSectors, useCycles, useCreateObjective, useCreateKeyResult, useProfiles } from '@/hooks/useSupabaseData';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,11 +50,6 @@ const priorityOptions = [
   { value: 'low', label: 'Baixa', color: 'text-muted-foreground' },
 ];
 
-const ownerOptions = [
-  'Carlos Silva', 'Ana Costa', 'Pedro Santos', 'Maria Lima', 
-  'Roberto Mendes', 'Fernanda Alves', 'Bruno Martins', 'André Souza'
-];
-
 const krTypeOptions = [
   { value: 'numeric', label: 'Numérico' },
   { value: 'percentage', label: 'Percentual' },
@@ -70,11 +65,16 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
   const [importOpen, setImportOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedDocument, setParsedDocument] = useState<ParsedDocument | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { addObjective, cycles, sectors } = useApp();
+  const { data: sectors = [] } = useSectors();
+  const { data: cycles = [] } = useCycles();
+  const { data: profiles = [] } = useProfiles();
+  const createObjective = useCreateObjective();
+  const createKeyResult = useCreateKeyResult();
   const { parseDocument, isLoading: isParsing, clearResult } = useDocumentParser();
   
-  const activeCycles = cycles.filter(c => !c.isArchived);
+  const activeCycles = cycles.filter(c => !c.is_archived);
 
   const form = useForm<OKRFormData>({
     resolver: zodResolver(okrFormSchema),
@@ -150,36 +150,48 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
     setImportOpen(false);
   };
 
-  const onSubmit = (data: OKRFormData) => {
-    addObjective({
-      title: data.title,
-      description: data.description,
-      sector: data.sector,
-      owner: data.owner,
-      period: data.period,
-      priority: data.priority,
-      keyResults: data.keyResults.map((kr, index) => ({
-        id: `kr-new-${Date.now()}-${index}`,
-        title: kr.title,
-        type: kr.type,
-        target: kr.target,
-        baseline: kr.baseline,
-        unit: kr.unit,
-        owner: kr.owner,
-        current: 0,
+  const onSubmit = async (data: OKRFormData) => {
+    setIsSubmitting(true);
+    try {
+      // Create the objective first
+      const newObjective = await createObjective.mutateAsync({
+        title: data.title,
+        description: data.description,
+        sector_id: data.sector,
+        cycle_id: data.period,
+        status: 'on-track',
         progress: 0,
-        status: 'on-track' as const,
-        lastUpdate: new Date().toISOString().split('T')[0],
-      })),
-    });
-    
-    toast({
-      title: 'OKR criado com sucesso!',
-      description: `Objetivo "${data.title}" foi cadastrado com ${data.keyResults.length} Key Results.`,
-    });
-    
-    setOpen(false);
-    form.reset();
+      });
+
+      // Then create the key results
+      for (const kr of data.keyResults) {
+        await createKeyResult.mutateAsync({
+          objective_id: newObjective.id,
+          title: kr.title,
+          type: kr.type,
+          target_value: kr.target,
+          current_value: 0,
+          unit: kr.unit,
+          status: 'on-track',
+        });
+      }
+      
+      toast({
+        title: 'OKR criado com sucesso!',
+        description: `Objetivo "${data.title}" foi cadastrado com ${data.keyResults.length} Key Results.`,
+      });
+      
+      setOpen(false);
+      form.reset();
+    } catch (error) {
+      toast({
+        title: 'Erro ao criar OKR',
+        description: 'Não foi possível criar o objetivo. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -305,7 +317,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                         </FormControl>
                         <SelectContent>
                           {sectors.map(sector => (
-                            <SelectItem key={sector.id} value={sector.slug}>
+                            <SelectItem key={sector.id} value={sector.id}>
                               {sector.name}
                             </SelectItem>
                           ))}
@@ -329,9 +341,9 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ownerOptions.map(name => (
-                            <SelectItem key={name} value={name}>
-                              {name}
+                          {profiles.map(profile => (
+                            <SelectItem key={profile.id} value={profile.name}>
+                              {profile.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -355,8 +367,8 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                         </FormControl>
                         <SelectContent>
                           {activeCycles.map(cycle => (
-                            <SelectItem key={cycle.id} value={cycle.label}>
-                              {cycle.label}
+                            <SelectItem key={cycle.id} value={cycle.id}>
+                              {cycle.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -538,9 +550,9 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {ownerOptions.map(name => (
-                                  <SelectItem key={name} value={name}>
-                                    {name}
+                                {profiles.map(profile => (
+                                  <SelectItem key={profile.id} value={profile.name}>
+                                    {profile.name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

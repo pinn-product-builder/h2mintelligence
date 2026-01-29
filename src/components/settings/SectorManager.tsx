@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
+import { useSectors, useObjectives, useCreateSector } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,64 +7,94 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, AlertTriangle, Lock } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, AlertTriangle, Lock, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { SectorConfig } from '@/types/okr';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { Sector } from '@/hooks/useSupabaseData';
 
 export function SectorManager() {
   const { user } = useAuth();
-  const { sectors, objectives, addSector, updateSector, deleteSector } = useApp();
+  const { data: sectors = [], isLoading } = useSectors();
+  const { data: objectives = [] } = useObjectives();
+  const createSector = useCreateSector();
+  const queryClient = useQueryClient();
+  
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingSector, setEditingSector] = useState<SectorConfig | null>(null);
+  const [editingSector, setEditingSector] = useState<Sector | null>(null);
   const [newSectorName, setNewSectorName] = useState('');
   const [editSectorName, setEditSectorName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isAdmin = user?.role === 'admin';
 
-  const getOKRCountForSector = (sectorSlug: string) => {
-    return objectives.filter(obj => obj.sector === sectorSlug).length;
+  const getOKRCountForSector = (sectorId: string) => {
+    return objectives.filter(obj => obj.sector_id === sectorId).length;
   };
 
-  const handleCreateSector = () => {
+  const handleCreateSector = async () => {
     if (!newSectorName.trim()) return;
     
-    const slug = newSectorName.toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '');
+    setIsSubmitting(true);
+    try {
+      await createSector.mutateAsync({
+        name: newSectorName.trim(),
+        is_active: true,
+        color: '#6366f1',
+      });
 
-    addSector({
-      name: newSectorName.trim(),
-      slug,
-      createdBy: user?.id || 'system',
-    });
+      toast({
+        title: 'Setor criado!',
+        description: `Setor "${newSectorName}" foi adicionado com sucesso.`,
+      });
 
-    toast({
-      title: 'Setor criado!',
-      description: `Setor "${newSectorName}" foi adicionado com sucesso.`,
-    });
-
-    setNewSectorName('');
-    setIsCreateOpen(false);
+      setNewSectorName('');
+      setIsCreateOpen(false);
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível criar o setor.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleUpdateSector = () => {
+  const handleUpdateSector = async () => {
     if (!editingSector || !editSectorName.trim()) return;
     
-    updateSector(editingSector.id, { name: editSectorName.trim() });
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('sectors')
+        .update({ name: editSectorName.trim() })
+        .eq('id', editingSector.id);
 
-    toast({
-      title: 'Setor atualizado!',
-      description: `Setor "${editSectorName}" foi atualizado.`,
-    });
+      if (error) throw error;
 
-    setEditingSector(null);
-    setEditSectorName('');
+      queryClient.invalidateQueries({ queryKey: ['sectors'] });
+
+      toast({
+        title: 'Setor atualizado!',
+        description: `Setor "${editSectorName}" foi atualizado.`,
+      });
+
+      setEditingSector(null);
+      setEditSectorName('');
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o setor.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteSector = (sector: SectorConfig) => {
-    const okrCount = getOKRCountForSector(sector.slug);
+  const handleDeleteSector = async (sector: Sector) => {
+    const okrCount = getOKRCountForSector(sector.id);
     
     if (okrCount > 0) {
       toast({
@@ -75,11 +105,30 @@ export function SectorManager() {
       return;
     }
 
-    deleteSector(sector.id);
-    toast({
-      title: 'Setor excluído',
-      description: `Setor "${sector.name}" foi removido.`,
-    });
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('sectors')
+        .delete()
+        .eq('id', sector.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['sectors'] });
+
+      toast({
+        title: 'Setor excluído',
+        description: `Setor "${sector.name}" foi removido.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir o setor.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isAdmin) {
@@ -134,8 +183,8 @@ export function SectorManager() {
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleCreateSector} disabled={!newSectorName.trim()}>
-                  Criar Setor
+                <Button onClick={handleCreateSector} disabled={!newSectorName.trim() || isSubmitting}>
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Setor'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -143,7 +192,11 @@ export function SectorManager() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {sectors.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : sectors.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Nenhum setor cadastrado</p>
@@ -151,7 +204,7 @@ export function SectorManager() {
           </div>
         ) : (
           sectors.map(sector => {
-            const okrCount = getOKRCountForSector(sector.slug);
+            const okrCount = getOKRCountForSector(sector.id);
             
             return (
               <div
@@ -197,8 +250,8 @@ export function SectorManager() {
                         <Button variant="outline" onClick={() => setEditingSector(null)}>
                           Cancelar
                         </Button>
-                        <Button onClick={handleUpdateSector} disabled={!editSectorName.trim()}>
-                          Salvar
+                        <Button onClick={handleUpdateSector} disabled={!editSectorName.trim() || isSubmitting}>
+                          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -244,7 +297,7 @@ export function SectorManager() {
           })
         )}
 
-        {sectors.some(s => getOKRCountForSector(s.slug) > 0) && (
+        {sectors.some(s => getOKRCountForSector(s.id) > 0) && (
           <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
             <AlertTriangle className="w-4 h-4 text-warning" />
             <span>

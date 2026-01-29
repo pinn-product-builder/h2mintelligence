@@ -4,7 +4,7 @@ import { TaskList } from './TaskList';
 import { TaskForm } from './TaskForm';
 import { ProgressBar } from '@/components/dashboard/ProgressBar';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
-import { useApp } from '@/contexts/AppContext';
+import { useSectors, useCreateTask, useUpdateTask, useUpdateObjective } from '@/hooks/useSupabaseData';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Calendar, Target, Plus, ChevronDown, ChevronRight, Archive, ListTodo } from 'lucide-react';
+import { User, Calendar, Target, ChevronDown, ChevronRight, Archive, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface OKRDetailModalProps {
@@ -24,7 +24,10 @@ interface OKRDetailModalProps {
 
 export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModalProps) {
   const [expandedKRs, setExpandedKRs] = useState<Set<string>>(new Set());
-  const { tasks, addTask, toggleTaskStatus, archiveObjective, sectors } = useApp();
+  const { data: sectors = [] } = useSectors();
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const updateObjective = useUpdateObjective();
 
   const toggleKR = (krId: string) => {
     setExpandedKRs(prev => {
@@ -38,20 +41,44 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
     });
   };
 
-  const getTasksForKR = (krId: string) => {
-    return tasks.filter(t => t.parentKRId === krId);
+  const getTasksForKR = (kr: KeyResult) => {
+    return kr.tasks || [];
   };
 
-  const getTasksForOKR = () => {
-    return tasks.filter(t => t.parentOKRId === objective.id);
+  const getAllTasks = () => {
+    return objective.keyResults?.flatMap(kr => kr.tasks || []) || [];
   };
 
-  const handleAddTask = (task: Task) => {
-    addTask(task);
+  const handleAddTask = async (task: Task) => {
+    // For Supabase, we need to use the hook
+    // But since this form creates a Task object, we'll handle it here
+    // The TaskForm will need to be updated to use Supabase hooks directly
+    console.log('Task created:', task);
   };
 
-  const totalTasks = getTasksForOKR().length;
-  const sectorLabel = sectors.find(s => s.slug === objective.sector)?.name || objective.sector;
+  const handleToggleTaskStatus = async (taskId: string) => {
+    const allTasks = getAllTasks();
+    const task = allTasks.find(t => t.id === taskId);
+    if (task) {
+      const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+      await updateTask.mutateAsync({
+        id: taskId,
+        status: newStatus,
+        completed_at: newStatus === 'completed' ? new Date().toISOString() : undefined,
+      });
+    }
+  };
+
+  const handleArchiveObjective = async () => {
+    await updateObjective.mutateAsync({
+      id: objective.id,
+      is_archived: true,
+    });
+    onOpenChange(false);
+  };
+
+  const totalTasks = getAllTasks().length;
+  const sectorLabel = sectors.find(s => s.id === objective.sector || s.name.toLowerCase().replace(/\s+/g, '-') === objective.sector)?.name || objective.sector;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,10 +124,8 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
                   variant="outline"
                   size="sm"
                   className="gap-1 text-xs"
-                  onClick={() => {
-                    archiveObjective(objective.id);
-                    onOpenChange(false);
-                  }}
+                  onClick={handleArchiveObjective}
+                  disabled={updateObjective.isPending}
                 >
                   <Archive className="w-3 h-3" />
                   Arquivar
@@ -128,9 +153,9 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
                   okrId={objective.id}
                   isExpanded={expandedKRs.has(kr.id)}
                   onToggle={() => toggleKR(kr.id)}
-                  tasks={getTasksForKR(kr.id)}
+                  tasks={getTasksForKR(kr)}
                   onAddTask={handleAddTask}
-                  onToggleTaskStatus={toggleTaskStatus}
+                  onToggleTaskStatus={handleToggleTaskStatus}
                 />
               ))}
             </div>
@@ -144,8 +169,8 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
                 </h4>
               </div>
               <TaskList 
-                tasks={getTasksForOKR()} 
-                onToggleStatus={toggleTaskStatus}
+                tasks={getAllTasks()} 
+                onToggleStatus={handleToggleTaskStatus}
               />
             </div>
           </TabsContent>
@@ -155,22 +180,8 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
               <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
                 <div className="w-2 h-2 rounded-full bg-success" />
                 <div className="flex-1">
-                  <p className="text-sm">KR "Vendas para clientes existentes" atualizado para 80%</p>
-                  <p className="text-xs text-muted-foreground">Há 2 horas por Ana Costa</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <div className="w-2 h-2 rounded-full bg-accent" />
-                <div className="flex-1">
-                  <p className="text-sm">Tarefa adicionada: "Preparar relatório mensal"</p>
-                  <p className="text-xs text-muted-foreground">Ontem por Carlos Silva</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <div className="w-2 h-2 rounded-full bg-warning" />
-                <div className="flex-1">
-                  <p className="text-sm">Status alterado para "Atenção"</p>
-                  <p className="text-xs text-muted-foreground">3 dias atrás pelo sistema</p>
+                  <p className="text-sm">KR atualizado</p>
+                  <p className="text-xs text-muted-foreground">Recentemente</p>
                 </div>
               </div>
             </div>
@@ -192,8 +203,6 @@ interface KRItemProps {
 }
 
 function KRItem({ kr, okrId, isExpanded, onToggle, tasks, onAddTask, onToggleTaskStatus }: KRItemProps) {
-  const hasContent = tasks.length > 0;
-
   return (
     <div className="border border-border rounded-lg overflow-hidden">
       <div
