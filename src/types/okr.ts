@@ -60,3 +60,13 @@ export interface SectorSummary {
   attention: number;
   critical: number;
 }
+
+export interface OKRCycle {
+  id: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isArchived: boolean;
+  createdAt: string;
+}
