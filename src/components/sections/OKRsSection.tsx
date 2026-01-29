@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
+import { useSectors, useCycles, useObjectives, useArchivedObjectives, useUpdateObjective, useProfiles } from '@/hooks/useSupabaseData';
 import { OKRCard } from '@/components/dashboard/OKRCard';
 import { NewOKRForm } from '@/components/okr/NewOKRForm';
 import { CycleManager } from '@/components/okr/CycleManager';
@@ -7,53 +6,88 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, LayoutGrid, List, Target, CheckCircle, AlertTriangle, AlertCircle, FolderArchive, RotateCcw } from 'lucide-react';
-import { Objective } from '@/types/okr';
+import { Search, LayoutGrid, List, Target, CheckCircle, AlertTriangle, AlertCircle, FolderArchive, RotateCcw, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
 
 export function OKRsSection() {
-  const { objectives, archivedObjectives, restoreObjective, cycles, archivedCycles, sectors } = useApp();
+  const { data: sectors = [], isLoading: sectorsLoading } = useSectors();
+  const { data: cycles = [], isLoading: cyclesLoading } = useCycles();
+  const { data: archivedObjectives = [] } = useArchivedObjectives();
+  const updateObjective = useUpdateObjective();
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('ativos');
-  const [selectedCycle, setSelectedCycle] = useState(() => {
-    const activeCycle = cycles.find(c => c.isActive && !c.isArchived);
-    return activeCycle?.label || cycles.filter(c => !c.isArchived)[0]?.label || '';
+  
+  const activeCycles = useMemo(() => cycles.filter(c => !c.is_archived), [cycles]);
+  const archivedCycles = useMemo(() => cycles.filter(c => c.is_archived), [cycles]);
+  
+  const [selectedCycleId, setSelectedCycleId] = useState<string>(() => {
+    const activeCycle = activeCycles.find(c => c.is_active);
+    return activeCycle?.id || '';
   });
 
-  const activeCycles = cycles.filter(c => !c.isArchived);
+  // Update selectedCycleId when cycles load
+  useMemo(() => {
+    if (activeCycles.length > 0 && !selectedCycleId) {
+      const activeCycle = activeCycles.find(c => c.is_active);
+      setSelectedCycleId(activeCycle?.id || activeCycles[0]?.id || '');
+    }
+  }, [activeCycles, selectedCycleId]);
 
-  const filteredObjectives = objectives.filter(obj => {
-    const matchesSearch = obj.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || obj.status === statusFilter;
-    const matchesCycle = obj.period === selectedCycle;
-    return matchesSearch && matchesStatus && matchesCycle;
-  });
+  const { data: objectives = [], isLoading: objectivesLoading } = useObjectives(selectedCycleId);
 
-  const filteredArchivedObjectives = archivedObjectives.filter(obj => {
-    const matchesSearch = obj.title.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredObjectives = useMemo(() => {
+    return objectives.filter(obj => {
+      const matchesSearch = obj.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || obj.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [objectives, searchTerm, statusFilter]);
 
-  const cycleObjectives = objectives.filter(obj => obj.period === selectedCycle);
-  const stats = {
-    total: cycleObjectives.length,
-    onTrack: cycleObjectives.filter(o => o.status === 'on-track').length,
-    attention: cycleObjectives.filter(o => o.status === 'attention').length,
-    critical: cycleObjectives.filter(o => o.status === 'critical').length,
+  const filteredArchivedObjectives = useMemo(() => {
+    return archivedObjectives.filter(obj => {
+      const matchesSearch = obj.title.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    });
+  }, [archivedObjectives, searchTerm]);
+
+  const stats = useMemo(() => ({
+    total: objectives.length,
+    onTrack: objectives.filter(o => o.status === 'on-track').length,
+    attention: objectives.filter(o => o.status === 'attention').length,
+    critical: objectives.filter(o => o.status === 'critical').length,
+  }), [objectives]);
+
+  const restoreObjective = async (id: string) => {
+    await updateObjective.mutateAsync({ id, is_archived: false });
   };
 
-  const getOKRCountForCycle = (cycleLabel: string) => {
-    return objectives.filter(obj => obj.period === cycleLabel).length;
+  const getSectorLabel = (sectorId?: string) => {
+    if (!sectorId) return '';
+    const sector = sectors.find(s => s.id === sectorId);
+    return sector?.name || '';
   };
 
-  const getSectorLabel = (sectorSlug: string) => {
-    return sectors.find(s => s.slug === sectorSlug)?.name || sectorSlug;
+  const getSelectedCycleName = () => {
+    const cycle = activeCycles.find(c => c.id === selectedCycleId);
+    return cycle?.name || '';
   };
+
+  const isLoading = sectorsLoading || cyclesLoading || objectivesLoading;
+
+  if (isLoading && objectives.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Stats Cards - Topo */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card-elevated p-4 border-l-4 border-l-primary">
           <div className="flex items-center gap-3">
@@ -101,7 +135,7 @@ export function OKRsSection() {
         </div>
       </div>
 
-      {/* Tabs para Ativos/Histórico */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="ativos" className="gap-2">
@@ -163,27 +197,21 @@ export function OKRsSection() {
 
           {/* Cycle Selector */}
           <div className="flex items-center gap-3">
-            <Select value={selectedCycle} onValueChange={setSelectedCycle}>
+            <Select value={selectedCycleId} onValueChange={setSelectedCycleId}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Selecione o período" />
               </SelectTrigger>
               <SelectContent>
-                {activeCycles.map((cycle) => {
-                  const okrCount = getOKRCountForCycle(cycle.label);
-                  return (
-                    <SelectItem key={cycle.id} value={cycle.label}>
-                      <div className="flex items-center gap-2">
-                        <span>{cycle.label}</span>
-                        {cycle.isActive && (
-                          <span className="w-2 h-2 rounded-full bg-success" />
-                        )}
-                        <span className="text-muted-foreground text-xs">
-                          ({okrCount} OKR{okrCount !== 1 ? 's' : ''})
-                        </span>
-                      </div>
-                    </SelectItem>
-                  );
-                })}
+                {activeCycles.map((cycle) => (
+                  <SelectItem key={cycle.id} value={cycle.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{cycle.name}</span>
+                      {cycle.is_active && (
+                        <span className="w-2 h-2 rounded-full bg-success" />
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <CycleManager />
@@ -194,7 +222,50 @@ export function OKRsSection() {
             {filteredObjectives.length > 0 ? (
               <div className={viewMode === 'grid' ? 'grid md:grid-cols-2 gap-4' : 'space-y-4'}>
                 {filteredObjectives.map((objective, index) => (
-                  <OKRCard key={objective.id} objective={objective} index={index} />
+                  <OKRCard 
+                    key={objective.id} 
+                    objective={{
+                      id: objective.id,
+                      title: objective.title,
+                      description: objective.description || '',
+                      sector: objective.sector_id || '',
+                      owner: objective.owner?.name || '',
+                      period: getSelectedCycleName(),
+                      priority: 'medium',
+                      progress: objective.progress,
+                      status: objective.status as any,
+                      createdAt: objective.created_at,
+                      updatedAt: objective.updated_at,
+                      keyResults: (objective.key_results || []).map(kr => ({
+                        id: kr.id,
+                        title: kr.title,
+                        type: kr.type as any,
+                        current: kr.current_value,
+                        target: kr.target_value,
+                        baseline: 0,
+                        unit: kr.unit || '',
+                        owner: kr.owner?.name || '',
+                        progress: kr.target_value > 0 ? Math.round((kr.current_value / kr.target_value) * 100) : 0,
+                        status: kr.status as any,
+                        lastUpdate: kr.updated_at,
+                        tasks: (kr.tasks || []).map(t => ({
+                          id: t.id,
+                          title: t.title,
+                          description: t.description,
+                          assignedTo: t.assignee_id || '',
+                          assignedToName: t.assignee?.name || '',
+                          dueDate: t.due_date,
+                          priority: t.priority as any,
+                          status: t.status as any,
+                          createdAt: t.created_at,
+                          completedAt: t.completed_at,
+                          parentKRId: t.key_result_id,
+                          parentOKRId: objective.id,
+                        })),
+                      })),
+                    }} 
+                    index={index} 
+                  />
                 ))}
               </div>
             ) : (
@@ -206,7 +277,6 @@ export function OKRsSection() {
         </TabsContent>
 
         <TabsContent value="historico" className="mt-4 space-y-4">
-          {/* Search para histórico */}
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -219,7 +289,6 @@ export function OKRsSection() {
             </div>
           </div>
 
-          {/* Archived OKRs */}
           {filteredArchivedObjectives.length > 0 ? (
             <div className="space-y-3">
               {filteredArchivedObjectives.map((objective) => (
@@ -230,15 +299,12 @@ export function OKRsSection() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded">
-                        {getSectorLabel(objective.sector)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {objective.period}
+                        {getSectorLabel(objective.sector_id)}
                       </span>
                     </div>
                     <p className="font-medium truncate">{objective.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      Arquivado em: {objective.archivedAt} • Progresso final: {objective.progress}%
+                      Progresso final: {objective.progress}%
                     </p>
                   </div>
                   <Button
@@ -246,6 +312,7 @@ export function OKRsSection() {
                     size="sm"
                     className="gap-2"
                     onClick={() => restoreObjective(objective.id)}
+                    disabled={updateObjective.isPending}
                   >
                     <RotateCcw className="w-4 h-4" />
                     Restaurar
@@ -263,7 +330,6 @@ export function OKRsSection() {
         </TabsContent>
       </Tabs>
 
-      {/* Rodapé informativo sobre ciclos arquivados */}
       {archivedCycles.length > 0 && (
         <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
           <FolderArchive className="w-4 h-4" />

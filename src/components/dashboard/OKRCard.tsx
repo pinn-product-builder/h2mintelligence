@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Objective } from '@/types/okr';
 import { ProgressBar } from './ProgressBar';
 import { StatusBadge } from './StatusBadge';
-import { useApp } from '@/contexts/AppContext';
+import { useSectors } from '@/hooks/useSupabaseData';
 import { ChevronRight, User, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
@@ -16,14 +16,12 @@ interface OKRCardProps {
 
 // Generate mock weekly progress data based on current progress
 function generateWeeklyProgress(currentProgress: number, status: string) {
-  const weeks = 12; // Q1 = ~12 weeks
-  const currentWeek = 4; // Simulating we're in week 4
+  const weeks = 12;
+  const currentWeek = 4;
   const data = [];
   
-  // Generate realistic progression curve
   for (let i = 1; i <= weeks; i++) {
     if (i <= currentWeek) {
-      // Past weeks - gradual increase with some variance
       const baseProgress = (currentProgress / currentWeek) * i;
       const variance = (Math.random() - 0.5) * 10;
       data.push({
@@ -31,7 +29,6 @@ function generateWeeklyProgress(currentProgress: number, status: string) {
         progress: Math.max(0, Math.min(100, Math.round(baseProgress + variance))),
       });
     } else {
-      // Future weeks - projected (null for now)
       data.push({
         week: `S${i}`,
         progress: null,
@@ -39,7 +36,6 @@ function generateWeeklyProgress(currentProgress: number, status: string) {
     }
   }
   
-  // Ensure last actual week matches current progress
   if (currentWeek > 0 && currentWeek <= weeks) {
     data[currentWeek - 1].progress = currentProgress;
   }
@@ -49,7 +45,7 @@ function generateWeeklyProgress(currentProgress: number, status: string) {
 
 export function OKRCard({ objective, index }: OKRCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const { sectors, tasks } = useApp();
+  const { data: sectors = [] } = useSectors();
   
   const weeklyData = useMemo(() => 
     generateWeeklyProgress(objective.progress, objective.status), 
@@ -65,8 +61,14 @@ export function OKRCard({ objective, index }: OKRCardProps) {
     }
   }, [objective.status]);
 
-  const totalTasks = tasks.filter(t => t.parentOKRId === objective.id).length;
-  const sectorLabel = sectors.find(s => s.slug === objective.sector)?.name || objective.sector;
+  // Count tasks from keyResults
+  const totalTasks = objective.keyResults?.reduce((acc, kr) => acc + (kr.tasks?.length || 0), 0) || 0;
+  
+  // Find sector label - support both slug (old format) and id (new format)
+  const sectorLabel = useMemo(() => {
+    const sector = sectors.find(s => s.id === objective.sector || s.name.toLowerCase().replace(/\s+/g, '-') === objective.sector);
+    return sector?.name || objective.sector;
+  }, [sectors, objective.sector]);
 
   return (
     <>

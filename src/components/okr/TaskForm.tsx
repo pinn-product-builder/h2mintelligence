@@ -10,12 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus, ListTodo } from 'lucide-react';
+import { CalendarIcon, Plus, ListTodo, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Task, TaskPriority } from '@/types/okr';
-import { useApp } from '@/contexts/AppContext';
+import { useProfiles, useCreateTask } from '@/hooks/useSupabaseData';
 
 const taskSchema = z.object({
   title: z.string().min(3, 'Título deve ter pelo menos 3 caracteres').max(100),
@@ -42,7 +42,8 @@ const priorityOptions = [
 
 export function TaskForm({ krId, okrId, onTaskCreated, trigger }: TaskFormProps) {
   const [open, setOpen] = useState(false);
-  const { users } = useApp();
+  const { data: profiles = [] } = useProfiles();
+  const createTask = useCreateTask();
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -54,26 +55,43 @@ export function TaskForm({ krId, okrId, onTaskCreated, trigger }: TaskFormProps)
     },
   });
 
-  const onSubmit = (data: TaskFormData) => {
-    const selectedUser = users.find(u => u.id === data.assignedTo);
+  const onSubmit = async (data: TaskFormData) => {
+    const selectedProfile = profiles.find(p => p.id === data.assignedTo);
     
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      title: data.title,
-      description: data.description,
-      assignedTo: data.assignedTo,
-      assignedToName: selectedUser?.name || 'Não atribuído',
-      dueDate: data.dueDate?.toISOString().split('T')[0],
-      priority: data.priority as TaskPriority,
-      status: 'pending',
-      createdAt: new Date().toISOString().split('T')[0],
-      parentKRId: krId,
-      parentOKRId: okrId,
-    };
+    try {
+      await createTask.mutateAsync({
+        key_result_id: krId,
+        title: data.title,
+        description: data.description,
+        assignee_id: data.assignedTo || undefined,
+        due_date: data.dueDate?.toISOString().split('T')[0],
+        priority: data.priority as 'low' | 'medium' | 'high',
+        status: 'pending',
+      });
 
-    onTaskCreated?.(newTask);
-    setOpen(false);
-    form.reset();
+      // Also call the callback for local state update
+      if (onTaskCreated) {
+        const newTask: Task = {
+          id: `task-${Date.now()}`,
+          title: data.title,
+          description: data.description,
+          assignedTo: data.assignedTo,
+          assignedToName: selectedProfile?.name || 'Não atribuído',
+          dueDate: data.dueDate?.toISOString().split('T')[0],
+          priority: data.priority as TaskPriority,
+          status: 'pending',
+          createdAt: new Date().toISOString().split('T')[0],
+          parentKRId: krId,
+          parentOKRId: okrId,
+        };
+        onTaskCreated(newTask);
+      }
+
+      setOpen(false);
+      form.reset();
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
   };
 
   return (
@@ -141,9 +159,9 @@ export function TaskForm({ krId, okrId, onTaskCreated, trigger }: TaskFormProps)
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {users.map(user => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name}
+                      {profiles.map(profile => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -224,8 +242,16 @@ export function TaskForm({ krId, okrId, onTaskCreated, trigger }: TaskFormProps)
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="gradient-accent text-accent-foreground border-0">
-                Criar Tarefa
+              <Button 
+                type="submit" 
+                className="gradient-accent text-accent-foreground border-0"
+                disabled={createTask.isPending}
+              >
+                {createTask.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Criar Tarefa'
+                )}
               </Button>
             </div>
           </form>
