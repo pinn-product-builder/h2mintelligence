@@ -4,12 +4,12 @@ import {
   LayoutDashboard, 
   Target, 
   BarChart3, 
-  Building2, 
   Settings, 
   Users,
   ChevronLeft,
   ChevronRight,
-  Database
+  Database,
+  Building2
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,28 +35,36 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
   return (
     <aside 
       className={cn(
-        "fixed left-0 top-0 h-screen bg-sidebar flex flex-col transition-all duration-300 z-50",
-        collapsed ? "w-16" : "w-64"
+        "fixed left-0 top-0 h-screen bg-sidebar flex flex-col z-50",
+        "transition-all duration-300 ease-out",
+        "shadow-xl",
+        collapsed ? "w-[72px]" : "w-64"
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center flex-shrink-0">
-          <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
+      <div className={cn(
+        "flex items-center gap-3 h-16 border-b border-sidebar-border",
+        collapsed ? "px-5 justify-center" : "px-5"
+      )}>
+        <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center flex-shrink-0 shadow-md">
+          <Building2 className="w-5 h-5 text-sidebar-primary-foreground" strokeWidth={2} />
         </div>
-        {!collapsed && (
-          <div className="flex flex-col">
-            <span className="font-bold text-sidebar-foreground text-sm">H2M Intelligence</span>
-            <span className="text-[10px] text-sidebar-foreground/60">OKRs & Metas</span>
-          </div>
-        )}
+        <div className={cn(
+          "flex flex-col overflow-hidden transition-all duration-300",
+          collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+        )}>
+          <span className="font-bold text-sidebar-foreground text-sm whitespace-nowrap">H2M Intelligence</span>
+          <span className="text-[10px] text-sidebar-foreground/60 whitespace-nowrap">OKRs & Metas</span>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className="flex-1 overflow-y-auto py-5 px-3">
         {/* Main Navigation */}
         <div className="mb-6">
-          {!collapsed && <p className="section-title px-3 text-sidebar-foreground/50">Principal</p>}
+          {!collapsed && (
+            <p className="section-title px-3 text-sidebar-foreground/50 mb-2">Principal</p>
+          )}
           <ul className="space-y-1">
             {mainNavItems.map((item) => (
               <li key={item.id}>
@@ -64,12 +72,18 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
                   onClick={() => onSectionChange(item.id)}
                   className={cn(
                     "sidebar-item w-full",
-                    currentSection === item.id && "sidebar-item-active"
+                    currentSection === item.id && "sidebar-item-active",
+                    collapsed && "justify-center px-0"
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
+                  <item.icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                  <span className={cn(
+                    "transition-all duration-300 whitespace-nowrap",
+                    collapsed ? "w-0 opacity-0 overflow-hidden" : "w-auto opacity-100"
+                  )}>
+                    {item.label}
+                  </span>
                 </button>
               </li>
             ))}
@@ -78,7 +92,9 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
 
         {/* System */}
         <div>
-          {!collapsed && <p className="section-title px-3 text-sidebar-foreground/50">Sistema</p>}
+          {!collapsed && (
+            <p className="section-title px-3 text-sidebar-foreground/50 mb-2">Sistema</p>
+          )}
           <ul className="space-y-1">
             {systemItems.map((item) => (
               <li key={item.id}>
@@ -86,12 +102,18 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
                   onClick={() => onSectionChange(item.id)}
                   className={cn(
                     "sidebar-item w-full",
-                    currentSection === item.id && "sidebar-item-active"
+                    currentSection === item.id && "sidebar-item-active",
+                    collapsed && "justify-center px-0"
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
+                  <item.icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                  <span className={cn(
+                    "transition-all duration-300 whitespace-nowrap",
+                    collapsed ? "w-0 opacity-0 overflow-hidden" : "w-auto opacity-100"
+                  )}>
+                    {item.label}
+                  </span>
                 </button>
               </li>
             ))}
@@ -103,16 +125,19 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
       <div className="p-3 border-t border-sidebar-border">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="sidebar-item w-full justify-center"
-        >
-          {collapsed ? (
-            <ChevronRight className="w-5 h-5" />
-          ) : (
-            <>
-              <ChevronLeft className="w-5 h-5" />
-              <span>Recolher</span>
-            </>
+          className={cn(
+            "sidebar-item w-full group",
+            collapsed ? "justify-center px-0" : "justify-between"
           )}
+        >
+          {!collapsed && <span>Recolher</span>}
+          <div className={cn(
+            "w-7 h-7 rounded-lg bg-sidebar-accent flex items-center justify-center",
+            "transition-transform duration-300",
+            collapsed && "rotate-180"
+          )}>
+            <ChevronLeft className="w-4 h-4" />
+          </div>
         </button>
       </div>
     </aside>

@@ -4,10 +4,12 @@ import { SectorOverview } from './SectorOverview';
 import { QuickStats } from './QuickStats';
 import { NewOKRForm } from '@/components/okr/NewOKRForm';
 import { useObjectives, useSectors, useCycles } from '@/hooks/useSupabaseData';
-import { Plus, Filter, Loader2 } from 'lucide-react';
+import { Plus, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMemo } from 'react';
 import { MetricCard as MetricCardType, SectorSummary } from '@/types/okr';
+import { SkeletonMetricCard, SkeletonCard } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function Dashboard() {
   const { data: cycles = [] } = useCycles();
@@ -133,10 +135,38 @@ export function Dashboard() {
 
   const isLoading = objectivesLoading || sectorsLoading;
 
+  // Skeleton Loading State
   if (isLoading && objectives.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6 animate-fade-in">
+        {/* Metrics Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonMetricCard key={i} />
+          ))}
+        </div>
+
+        {/* Content Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="h-6 w-40 bg-muted rounded animate-pulse" />
+              <div className="flex gap-2">
+                <div className="h-9 w-20 bg-muted rounded animate-pulse" />
+                <div className="h-9 w-24 bg-muted rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-6">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        </div>
       </div>
     );
   }
@@ -181,10 +211,11 @@ export function Dashboard() {
               ))}
             </div>
           ) : (
-            <div className="card-elevated p-8 text-center text-muted-foreground">
-              <p>Nenhum OKR cadastrado ainda.</p>
-              <p className="text-sm mt-1">Clique em "Novo OKR" para começar.</p>
-            </div>
+            <EmptyState 
+              variant="okr"
+              title="Nenhum OKR cadastrado"
+              description="Clique em 'Novo OKR' para criar seu primeiro objetivo."
+            />
           )}
         </div>
 

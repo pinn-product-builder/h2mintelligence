@@ -6,6 +6,7 @@ interface ProgressBarProps {
   status?: OKRStatus;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
+  animated?: boolean;
 }
 
 const statusColors: Record<OKRStatus, string> = {
@@ -26,20 +27,39 @@ const sizeClasses = {
   lg: 'h-3',
 };
 
-export function ProgressBar({ progress, status, size = 'md', showLabel = false }: ProgressBarProps) {
+export function ProgressBar({ 
+  progress, 
+  status, 
+  size = 'md', 
+  showLabel = false,
+  animated = true 
+}: ProgressBarProps) {
   const resolvedStatus = status ?? getStatusFromProgress(progress);
+  const clampedProgress = Math.min(Math.max(progress, 0), 100);
+  
   return (
     <div className="w-full">
       {showLabel && (
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-muted-foreground">Progresso</span>
-          <span className="text-xs font-medium">{progress}%</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Progresso</span>
+          <span className={cn(
+            "text-xs font-semibold tabular-nums",
+            resolvedStatus === 'on-track' && "text-success",
+            resolvedStatus === 'attention' && "text-warning",
+            resolvedStatus === 'critical' && "text-critical"
+          )}>
+            {clampedProgress}%
+          </span>
         </div>
       )}
       <div className={cn("progress-bar", sizeClasses[size])}>
         <div 
-          className={cn("progress-bar-fill", statusColors[resolvedStatus])}
-          style={{ width: `${Math.min(progress, 100)}%` }}
+          className={cn(
+            "progress-bar-fill",
+            statusColors[resolvedStatus],
+            animated && "animate-progress"
+          )}
+          style={{ width: `${clampedProgress}%` }}
         />
       </div>
     </div>
