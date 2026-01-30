@@ -1,14 +1,16 @@
 import { Target, FileText, BarChart3, Inbox, Database, Users, FolderOpen, LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ReactNode } from 'react';
 
 type EmptyStateVariant = 'default' | 'okr' | 'data' | 'chart' | 'table' | 'users' | 'files';
 
 interface EmptyStateProps {
   variant?: EmptyStateVariant;
+  icon?: LucideIcon;
   title?: string;
   description?: string;
-  action?: {
+  action?: ReactNode | {
     label: string;
     onClick: () => void;
   };
@@ -75,13 +77,34 @@ const variantConfig: Record<EmptyStateVariant, {
 
 export function EmptyState({ 
   variant = 'default', 
+  icon: CustomIcon,
   title, 
   description, 
   action,
   className 
 }: EmptyStateProps) {
   const config = variantConfig[variant];
-  const Icon = config.icon;
+  const Icon = CustomIcon || config.icon;
+
+  const renderAction = () => {
+    if (!action) return null;
+    
+    // Check if it's a ReactNode (already rendered element)
+    if (typeof action === 'object' && 'type' in action) {
+      return <div className="mt-4">{action}</div>;
+    }
+    
+    // It's the label/onClick object
+    const actionObj = action as { label: string; onClick: () => void };
+    return (
+      <Button 
+        onClick={actionObj.onClick}
+        className="mt-4 gradient-accent text-accent-foreground"
+      >
+        {actionObj.label}
+      </Button>
+    );
+  };
 
   return (
     <div className={cn("empty-state animate-fade-in", className)}>
@@ -102,14 +125,7 @@ export function EmptyState({
       </p>
 
       {/* Action Button */}
-      {action && (
-        <Button 
-          onClick={action.onClick}
-          className="mt-4 gradient-accent text-accent-foreground"
-        >
-          {action.label}
-        </Button>
-      )}
+      {renderAction()}
     </div>
   );
 }
