@@ -282,6 +282,47 @@ export function useUpdateObjective() {
   });
 }
 
+// Delete objective
+export function useDeleteObjective() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // First delete all tasks associated with key results of this objective
+      const { data: keyResults } = await supabase
+        .from('key_results')
+        .select('id')
+        .eq('objective_id', id);
+      
+      if (keyResults && keyResults.length > 0) {
+        const krIds = keyResults.map(kr => kr.id);
+        await supabase
+          .from('tasks')
+          .delete()
+          .in('key_result_id', krIds);
+        
+        // Then delete key results
+        await supabase
+          .from('key_results')
+          .delete()
+          .eq('objective_id', id);
+      }
+      
+      // Finally delete the objective
+      const { error } = await supabase
+        .from('objectives')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['objectives'] });
+      queryClient.invalidateQueries({ queryKey: ['archived-objectives'] });
+    },
+  });
+}
+
 // Create key result
 export function useCreateKeyResult() {
   const queryClient = useQueryClient();
