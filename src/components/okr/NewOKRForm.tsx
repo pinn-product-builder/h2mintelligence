@@ -133,7 +133,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
           target: mapping.krTarget ? Number(row[mapping.krTarget]) || 0 : 0,
           baseline: mapping.krBaseline ? Number(row[mapping.krBaseline]) || 0 : 0,
           unit: mapping.krUnit ? String(row[mapping.krUnit] || '') : '',
-          ownerId: matchedProfile?.id || '',
+          ownerId: matchedProfile?.user_id || '',
         };
       }).filter(kr => kr.title || kr.target > 0);
 
@@ -349,7 +349,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                         </FormControl>
                         <SelectContent>
                           {profiles.map(profile => (
-                            <SelectItem key={profile.id} value={profile.id}>
+                            <SelectItem key={profile.user_id} value={profile.user_id}>
                               {profile.name}
                             </SelectItem>
                           ))}
@@ -558,7 +558,7 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
                               </FormControl>
                               <SelectContent>
                                 {profiles.map(profile => (
-                                  <SelectItem key={profile.id} value={profile.id}>
+                                  <SelectItem key={profile.user_id} value={profile.user_id}>
                                     {profile.name}
                                   </SelectItem>
                                 ))}
