@@ -3,8 +3,9 @@ import { OKRCard } from './OKRCard';
 import { SectorOverview } from './SectorOverview';
 import { QuickStats } from './QuickStats';
 import { NewOKRForm } from '@/components/okr/NewOKRForm';
+import { TaskForm } from '@/components/okr/TaskForm';
 import { useObjectives, useSectors, useCycles } from '@/hooks/useSupabaseData';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMemo } from 'react';
 import { MetricCard as MetricCardType, SectorSummary } from '@/types/okr';
@@ -193,6 +194,14 @@ export function Dashboard() {
                 <Filter className="w-4 h-4" />
                 Filtrar
               </Button>
+              <TaskForm
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <ListTodo className="w-4 h-4" />
+                    Nova Tarefa
+                  </Button>
+                }
+              />
               <NewOKRForm 
                 trigger={
                   <Button size="sm" className="gap-2 gradient-accent text-accent-foreground border-0">
