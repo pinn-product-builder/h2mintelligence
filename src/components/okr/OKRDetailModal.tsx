@@ -1,20 +1,31 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Objective, KeyResult, Task } from '@/types/okr';
 import { TaskList } from './TaskList';
 import { TaskForm } from './TaskForm';
 import { ProgressBar } from '@/components/dashboard/ProgressBar';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
-import { useSectors, useCreateTask, useUpdateTask, useUpdateObjective } from '@/hooks/useSupabaseData';
+import { useSectors, useCreateTask, useUpdateTask, useUpdateObjective, useDeleteObjective } from '@/hooks/useSupabaseData';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Calendar, Target, ChevronDown, ChevronRight, Archive, ListTodo } from 'lucide-react';
+import { User, Calendar, Target, ChevronDown, ChevronRight, Archive, ListTodo, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 interface OKRDetailModalProps {
   objective: Objective;
@@ -24,10 +35,22 @@ interface OKRDetailModalProps {
 
 export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModalProps) {
   const [expandedKRs, setExpandedKRs] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { data: sectors = [] } = useSectors();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const updateObjective = useUpdateObjective();
+  const deleteObjective = useDeleteObjective();
+
+  // Check for pending tasks
+  const pendingTasks = useMemo(() => {
+    return objective.keyResults?.flatMap(kr => 
+      (kr.tasks || []).filter(t => t.status !== 'completed')
+    ) || [];
+  }, [objective.keyResults]);
+
+  const hasPendingTasks = pendingTasks.length > 0;
+  const canDelete = !hasPendingTasks;
 
   const toggleKR = (krId: string) => {
     setExpandedKRs(prev => {
@@ -77,6 +100,24 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
     onOpenChange(false);
   };
 
+  const handleDeleteObjective = async () => {
+    try {
+      await deleteObjective.mutateAsync(objective.id);
+      toast({
+        title: 'OKR excluído',
+        description: `"${objective.title}" foi removido permanentemente.`,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir o OKR.',
+        variant: 'destructive',
+      });
+    }
+    setShowDeleteDialog(false);
+  };
+
   const totalTasks = getAllTasks().length;
   const sectorLabel = sectors.find(s => s.id === objective.sector || s.name.toLowerCase().replace(/\s+/g, '-') === objective.sector)?.name || objective.sector;
 
@@ -119,6 +160,18 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Progresso Geral</span>
             <div className="flex items-center gap-2">
+              {/* Delete button - only enabled when no pending tasks */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setShowDeleteDialog(true)}
+                disabled={!canDelete}
+                title={hasPendingTasks ? `${pendingTasks.length} tarefa(s) pendente(s) - conclua ou remova antes de excluir` : 'Excluir OKR'}
+              >
+                <Trash2 className="w-3 h-3" />
+                Excluir
+              </Button>
               {objective.progress === 100 && (
                 <Button
                   variant="outline"
@@ -188,6 +241,34 @@ export function OKRDetailModal({ objective, open, onOpenChange }: OKRDetailModal
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir OKR</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>"{objective.title}"</strong>?
+              <br /><br />
+              Esta ação é irreversível e removerá todos os Key Results e tarefas associados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteObjective}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteObjective.isPending}
+            >
+              {deleteObjective.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Excluir'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
