@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { insertNormalizedData } from '@/services/normalizedImport';
 import { 
   Upload, 
   Eye, 
@@ -88,20 +89,7 @@ export function ImportWizard({ open, onOpenChange, onImportComplete }: ImportWiz
       // Get current user
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
-      // 1. Insert the imported data into the database
-      const { error: metricsError } = await supabase
-        .from('imported_metrics' as any)
-        .insert({
-          source_file: state.file?.name || 'Arquivo',
-          target_table: state.targetTable,
-          data: state.data,
-          imported_by: authUser?.id,
-          total_rows: state.data.length,
-        } as any);
-      
-      if (metricsError) throw metricsError;
-      
-      // 2. Create the import log in the database
+      // 1. Create the import log first to get the ID
       const importErrors = (state.validationResult?.errors || [])
         .filter(e => e.row !== undefined)
         .slice(0, 20)
@@ -112,47 +100,76 @@ export function ImportWizard({ open, onOpenChange, onImportComplete }: ImportWiz
           severity: e.severity,
           value: e.value,
         }));
-      
-      const { error: logError } = await supabase
+
+      const { data: logData, error: logError } = await supabase
         .from('import_logs' as any)
         .insert({
           source_file: state.file?.name || 'Arquivo',
           import_type: state.file?.name.endsWith('.csv') ? 'csv' : 'xlsx',
           target_table: TARGET_TABLES.find(t => t.id === state.targetTable)?.label || state.targetTable,
-          status: hasErrors > 0 ? 'partial' : 'success',
+          status: 'processing',
           started_at: now.toISOString(),
-          completed_at: new Date().toISOString(),
           imported_by: authUser?.id,
           total_rows: state.data.length,
-          processed_rows: state.data.length - (hasErrors > 0 ? Math.min(hasErrors, 10) : 0),
-          skipped_rows: hasErrors > 0 ? Math.min(hasErrors, 10) : 0,
-          error_rows: hasErrors,
+          processed_rows: 0,
+          skipped_rows: 0,
+          error_rows: 0,
           errors: importErrors,
           mappings: state.mappings,
-        } as any);
+        } as any)
+        .select('id')
+        .single();
       
       if (logError) throw logError;
+      const importLogId = (logData as any)?.id;
+      
+      // 2. Insert into normalized fact tables
+      const result = await insertNormalizedData({
+        targetTable: state.targetTable,
+        category: 'financeiro', // resolved internally by the service
+        data: state.data,
+        mappings: state.mappings.map(m => ({
+          sourceColumn: m.sourceColumn,
+          targetField: m.targetField,
+        })),
+        fileName: state.file?.name || 'Arquivo',
+        importLogId,
+        userId: authUser?.id,
+      });
+      
+      // 3. Update import log with final status
+      const finalStatus = result.errors.length > 0 ? 'partial' : (hasErrors > 0 ? 'partial' : 'success');
+      await supabase
+        .from('import_logs' as any)
+        .update({
+          status: finalStatus,
+          completed_at: new Date().toISOString(),
+          processed_rows: result.insertedRows,
+          skipped_rows: state.data.length - result.insertedRows,
+          error_rows: result.errors.length + hasErrors,
+        } as any)
+        .eq('id', importLogId);
       
       // Also add to local state for immediate UI update
       addLog({
         sourceFile: state.file?.name || 'Arquivo',
         importType: state.file?.name.endsWith('.csv') ? 'csv' : 'xlsx',
-        status: hasErrors > 0 ? 'partial' : 'success',
+        status: finalStatus,
         startedAt: now.toISOString(),
         completedAt: new Date().toISOString(),
         userId: authUser?.id || 'unknown',
         userName: user?.name || 'Usuário',
         totalRows: state.data.length,
-        processedRows: state.data.length - (hasErrors > 0 ? Math.min(hasErrors, 10) : 0),
-        skippedRows: hasErrors > 0 ? Math.min(hasErrors, 10) : 0,
-        errorRows: hasErrors,
+        processedRows: result.insertedRows,
+        skippedRows: state.data.length - result.insertedRows,
+        errorRows: result.errors.length,
         errors: importErrors,
         targetTable: TARGET_TABLES.find(t => t.id === state.targetTable)?.label || state.targetTable,
       });
       
       toast({
         title: 'Importação concluída!',
-        description: `${state.data.length} registros importados e salvos com sucesso.`,
+        description: `${result.insertedRows} registros importados nas tabelas normalizadas.${result.errors.length > 0 ? ` ${result.errors.length} erro(s).` : ''}`,
       });
       
       setStep('complete');

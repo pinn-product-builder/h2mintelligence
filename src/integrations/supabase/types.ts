@@ -55,6 +55,285 @@ export type Database = {
           },
         ]
       }
+      dim_periodo: {
+        Row: {
+          ano: number
+          created_at: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          label: string | null
+          mes: number
+          trimestre: number | null
+        }
+        Insert: {
+          ano: number
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          label?: string | null
+          mes: number
+          trimestre?: number | null
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          label?: string | null
+          mes?: number
+          trimestre?: number | null
+        }
+        Relationships: []
+      }
+      dim_regiao: {
+        Row: {
+          codigo_ibge: string | null
+          created_at: string | null
+          estado: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          codigo_ibge?: string | null
+          created_at?: string | null
+          estado?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          codigo_ibge?: string | null
+          created_at?: string | null
+          estado?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      fact_financeiro: {
+        Row: {
+          created_at: string | null
+          extras: Json | null
+          fonte: string | null
+          id: string
+          import_log_id: string | null
+          imported_by: string | null
+          meta: number | null
+          moeda: string | null
+          periodo_id: string | null
+          regiao_id: string | null
+          sector_id: string | null
+          subtipo: string | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string | null
+          extras?: Json | null
+          fonte?: string | null
+          id?: string
+          import_log_id?: string | null
+          imported_by?: string | null
+          meta?: number | null
+          moeda?: string | null
+          periodo_id?: string | null
+          regiao_id?: string | null
+          sector_id?: string | null
+          subtipo?: string | null
+          tipo: string
+          valor: number
+        }
+        Update: {
+          created_at?: string | null
+          extras?: Json | null
+          fonte?: string | null
+          id?: string
+          import_log_id?: string | null
+          imported_by?: string | null
+          meta?: number | null
+          moeda?: string | null
+          periodo_id?: string | null
+          regiao_id?: string | null
+          sector_id?: string | null
+          subtipo?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fact_financeiro_import_log_id_fkey"
+            columns: ["import_log_id"]
+            isOneToOne: false
+            referencedRelation: "import_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_financeiro_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "dim_periodo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_financeiro_regiao_id_fkey"
+            columns: ["regiao_id"]
+            isOneToOne: false
+            referencedRelation: "dim_regiao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_financeiro_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fact_marketing: {
+        Row: {
+          cac: number | null
+          canal: string | null
+          conversoes: number | null
+          created_at: string | null
+          extras: Json | null
+          fonte: string | null
+          id: string
+          import_log_id: string | null
+          imported_by: string | null
+          investimento: number | null
+          leads: number | null
+          nome_campanha: string | null
+          periodo_id: string | null
+          roi: number | null
+          tipo: string
+        }
+        Insert: {
+          cac?: number | null
+          canal?: string | null
+          conversoes?: number | null
+          created_at?: string | null
+          extras?: Json | null
+          fonte?: string | null
+          id?: string
+          import_log_id?: string | null
+          imported_by?: string | null
+          investimento?: number | null
+          leads?: number | null
+          nome_campanha?: string | null
+          periodo_id?: string | null
+          roi?: number | null
+          tipo: string
+        }
+        Update: {
+          cac?: number | null
+          canal?: string | null
+          conversoes?: number | null
+          created_at?: string | null
+          extras?: Json | null
+          fonte?: string | null
+          id?: string
+          import_log_id?: string | null
+          imported_by?: string | null
+          investimento?: number | null
+          leads?: number | null
+          nome_campanha?: string | null
+          periodo_id?: string | null
+          roi?: number | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fact_marketing_import_log_id_fkey"
+            columns: ["import_log_id"]
+            isOneToOne: false
+            referencedRelation: "import_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_marketing_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "dim_periodo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fact_operacional: {
+        Row: {
+          classificacao: string | null
+          created_at: string | null
+          extras: Json | null
+          fonte: string | null
+          id: string
+          import_log_id: string | null
+          imported_by: string | null
+          item: string | null
+          periodo_id: string | null
+          quantidade: number | null
+          sector_id: string | null
+          tipo: string
+          valor_total: number | null
+          valor_unitario: number | null
+        }
+        Insert: {
+          classificacao?: string | null
+          created_at?: string | null
+          extras?: Json | null
+          fonte?: string | null
+          id?: string
+          import_log_id?: string | null
+          imported_by?: string | null
+          item?: string | null
+          periodo_id?: string | null
+          quantidade?: number | null
+          sector_id?: string | null
+          tipo: string
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Update: {
+          classificacao?: string | null
+          created_at?: string | null
+          extras?: Json | null
+          fonte?: string | null
+          id?: string
+          import_log_id?: string | null
+          imported_by?: string | null
+          item?: string | null
+          periodo_id?: string | null
+          quantidade?: number | null
+          sector_id?: string | null
+          tipo?: string
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fact_operacional_import_log_id_fkey"
+            columns: ["import_log_id"]
+            isOneToOne: false
+            referencedRelation: "import_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_operacional_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "dim_periodo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_operacional_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_logs: {
         Row: {
           completed_at: string | null
@@ -491,7 +770,57 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_financeiro_resumo: {
+        Row: {
+          ano: number | null
+          atingimento_pct: number | null
+          mes: number | null
+          periodo_label: string | null
+          regiao: string | null
+          registros: number | null
+          setor: string | null
+          subtipo: string | null
+          tipo: string | null
+          total_meta: number | null
+          total_valor: number | null
+          trimestre: number | null
+        }
+        Relationships: []
+      }
+      vw_marketing_resumo: {
+        Row: {
+          ano: number | null
+          avg_roi: number | null
+          cac_calculado: number | null
+          canal: string | null
+          cpl: number | null
+          mes: number | null
+          periodo_label: string | null
+          registros: number | null
+          tipo: string | null
+          total_conversoes: number | null
+          total_investimento: number | null
+          total_leads: number | null
+          trimestre: number | null
+        }
+        Relationships: []
+      }
+      vw_operacional_resumo: {
+        Row: {
+          ano: number | null
+          avg_valor_unitario: number | null
+          classificacao: string | null
+          mes: number | null
+          periodo_label: string | null
+          registros: number | null
+          setor: string | null
+          tipo: string | null
+          total_quantidade: number | null
+          total_valor: number | null
+          trimestre: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_access_view: {
