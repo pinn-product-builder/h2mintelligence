@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeDate } from '@/lib/dateNormalizer';
 
 /**
  * Service for inserting imported data into normalized fact tables.
@@ -42,35 +43,22 @@ const TABLE_TIPO_MAP: Record<string, string> = {
   metas: 'meta_setor',
 };
 
-/** Resolve or create a periodo dimension entry from date-like values */
+/** Resolve or create a periodo dimension entry from date-like values.
+ *  Uses the centralised dateNormalizer for robust multi-format parsing. */
 async function resolvePeriodo(dateValue: unknown): Promise<string | null> {
   if (!dateValue) return null;
 
-  let ano: number;
-  let mes: number;
-
-  const strVal = String(dateValue).trim();
-
-  // Pattern: "Jan/2026", "Fev/2026"
-  const monthYearMatch = strVal.match(/^([A-Za-zÀ-ú]{3,})\/(\d{4})$/);
-  if (monthYearMatch) {
-    const monthNames: Record<string, number> = {
-      jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
-      jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
-    };
-    mes = monthNames[monthYearMatch[1].toLowerCase().substring(0, 3)] || 1;
-    ano = parseInt(monthYearMatch[2]);
-  }
-  // Pattern: "2026-01-15" or "15/01/2026"
-  else if (/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
-    ano = parseInt(strVal.substring(0, 4));
-    mes = parseInt(strVal.substring(5, 7));
-  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(strVal)) {
-    ano = parseInt(strVal.substring(6, 10));
-    mes = parseInt(strVal.substring(3, 5));
-  } else {
+  const result = normalizeDate(dateValue);
+  if (!result.value) {
+    console.warn(`[resolvePeriodo] Formato de data não reconhecido: "${String(dateValue)}" (detectado: ${result.format})`);
     return null;
   }
+
+  // result.value is always YYYY-MM-DD
+  const ano = parseInt(result.value.substring(0, 4));
+  const mes = parseInt(result.value.substring(5, 7));
+
+  console.log(`[resolvePeriodo] "${String(dateValue)}" → ${result.value} (formato: ${result.format}) → período ${mes}/${ano}`);
 
   // Look up existing
   const { data: existing } = await supabase
