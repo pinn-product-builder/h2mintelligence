@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   ImportWizardState, 
   WizardStep, 
@@ -272,28 +273,31 @@ function parseCSV(content: string): { data: Record<string, unknown>[]; columns: 
   return { data, columns };
 }
 
-// Generate mock Excel data
-function generateMockExcelData(fileName: string): { data: Record<string, unknown>[]; columns: string[] } {
-  if (fileName.toLowerCase().includes('faturamento') || fileName.toLowerCase().includes('vendas')) {
-    const columns = ['Mês', 'Região', 'Vendedor', 'Valor', 'Meta', 'Atingimento'];
-    const data = [
-      { Mês: 'Jan/2026', Região: 'Sul', Vendedor: 'Carlos Silva', Valor: 245000, Meta: 250000, Atingimento: 98 },
-      { Mês: 'Jan/2026', Região: 'Sudeste', Vendedor: 'Ana Costa', Valor: 380000, Meta: 350000, Atingimento: 108.5 },
-      { Mês: 'Jan/2026', Região: 'Norte', Vendedor: 'Pedro Santos', Valor: 125000, Meta: 150000, Atingimento: 83.3 },
-      { Mês: 'Jan/2026', Região: 'Nordeste', Vendedor: 'Maria Lima', Valor: 189000, Meta: 200000, Atingimento: 94.5 },
-      { Mês: 'Fev/2026', Região: 'Sul', Vendedor: 'Carlos Silva', Valor: 268000, Meta: 260000, Atingimento: 103 },
-      { Mês: 'Fev/2026', Região: 'Sudeste', Vendedor: 'Ana Costa', Valor: 412000, Meta: 380000, Atingimento: 108.4 },
-    ];
-    return { data, columns };
-  }
-  
-  const columns = ['ID', 'Nome', 'Categoria', 'Valor', 'Data', 'Status'];
-  const data = [
-    { ID: 1, Nome: 'Item 1', Categoria: 'Categoria A', Valor: 1500, Data: '2026-01-15', Status: 'Ativo' },
-    { ID: 2, Nome: 'Item 2', Categoria: 'Categoria B', Valor: 2800, Data: '2026-01-18', Status: 'Ativo' },
-    { ID: 3, Nome: 'Item 3', Categoria: 'Categoria A', Valor: 950, Data: '2026-01-20', Status: 'Inativo' },
-  ];
-  
+// Parse Excel files using SheetJS
+function parseExcel(buffer: ArrayBuffer): { data: Record<string, unknown>[]; columns: string[] } {
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) return { data: [], columns: [] };
+
+  const sheet = workbook.Sheets[firstSheetName];
+  const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+
+  if (jsonData.length === 0) return { data: [], columns: [] };
+
+  const columns = Object.keys(jsonData[0]);
+  const data: Record<string, unknown>[] = jsonData.map(row => {
+    const typedRow: Record<string, unknown> = {};
+    for (const col of columns) {
+      const val = row[col];
+      if (val instanceof Date) {
+        typedRow[col] = val.toISOString().split('T')[0];
+      } else {
+        typedRow[col] = val;
+      }
+    }
+    return typedRow;
+  }).filter(row => Object.values(row).some(v => v !== '' && v !== null));
+
   return { data, columns };
 }
 
@@ -339,7 +343,8 @@ export function useDataImport() {
         data = result.data;
         columns = result.columns;
       } else if (extension === 'xlsx' || extension === 'xls') {
-        const result = generateMockExcelData(file.name);
+        const buffer = await file.arrayBuffer();
+        const result = parseExcel(buffer);
         data = result.data;
         columns = result.columns;
       }
