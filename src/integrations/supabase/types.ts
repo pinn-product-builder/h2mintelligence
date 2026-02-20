@@ -838,6 +838,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      rollback_import: { Args: { p_import_log_id: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "gestor" | "analista" | "visualizador"

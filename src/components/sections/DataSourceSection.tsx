@@ -327,6 +327,14 @@ export function DataSourceSection() {
             filter={filter}
             onFilterChange={setFilter}
             onDeleteLog={permissions.canDelete ? deleteLog : undefined}
+            onRollback={permissions.canDelete ? (id) => {
+              // Update local state to reflect rollback
+              const log = logs.find(l => l.id === id);
+              if (log) {
+                // The DB function already updated the status, just refresh local state
+                deleteLog(id);
+              }
+            } : undefined}
             stats={stats}
           />
         </TabsContent>

@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { 
   Search, 
   CheckCircle2, 
@@ -18,7 +21,9 @@ import {
   User,
   Calendar,
   Download,
-  Trash2
+  Trash2,
+  Undo2,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -33,6 +38,7 @@ interface ImportLogViewerProps {
   };
   onFilterChange: (filter: ImportLogViewerProps['filter']) => void;
   onDeleteLog?: (id: string) => void;
+  onRollback?: (id: string) => void;
   stats: {
     total: number;
     success: number;
@@ -67,6 +73,11 @@ const statusConfig: Record<ImportStatus, { icon: React.ReactNode; label: string;
     label: 'Erro', 
     className: 'bg-destructive/10 text-destructive' 
   },
+  rolled_back: {
+    icon: <Undo2 className="w-4 h-4" />,
+    label: 'Revertido',
+    className: 'bg-muted text-muted-foreground',
+  },
 };
 
 export function ImportLogViewer({
@@ -74,9 +85,11 @@ export function ImportLogViewer({
   filter,
   onFilterChange,
   onDeleteLog,
+  onRollback,
   stats,
 }: ImportLogViewerProps) {
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
+  const [rollingBack, setRollingBack] = useState<string | null>(null);
   
   const toggleExpanded = (id: string) => {
     setExpandedLogs(prev => {
@@ -95,6 +108,41 @@ export function ImportLogViewer({
       return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: ptBR });
     } catch {
       return dateStr;
+    }
+  };
+
+  const handleRollback = async (logId: string) => {
+    setRollingBack(logId);
+    try {
+      const { data, error } = await supabase.rpc('rollback_import', {
+        p_import_log_id: logId,
+      } as any);
+
+      if (error) throw error;
+
+      const result = data as any;
+      if (result?.success) {
+        toast({
+          title: 'Importação revertida!',
+          description: `${result.total_deleted} registro(s) removidos das tabelas de fatos.`,
+        });
+        onRollback?.(logId);
+      } else {
+        toast({
+          title: 'Erro ao reverter',
+          description: result?.error || 'Erro desconhecido',
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      console.error('Rollback error:', err);
+      toast({
+        title: 'Erro ao reverter',
+        description: err.message || 'Não foi possível reverter a importação.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRollingBack(null);
     }
   };
 
@@ -262,6 +310,42 @@ export function ImportLogViewer({
                       
                       {/* Actions */}
                       <div className="flex items-center gap-1">
+                        {/* Rollback button - only for success/partial imports */}
+                        {(log.status === 'success' || log.status === 'partial') && onRollback && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-warning"
+                                disabled={rollingBack === log.id}
+                              >
+                                {rollingBack === log.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Undo2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Reverter Importação</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Isso removerá <strong>todos os {log.processedRows} registros</strong> importados de "{log.sourceFile}" das tabelas de fatos. Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleRollback(log.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Reverter Importação
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <Download className="w-4 h-4" />
                         </Button>

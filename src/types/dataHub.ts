@@ -1,6 +1,6 @@
 // Data Hub Types - Import, Validation, Mapping and Logs
 
-export type ImportStatus = 'pending' | 'processing' | 'success' | 'partial' | 'error';
+export type ImportStatus = 'pending' | 'processing' | 'success' | 'partial' | 'error' | 'rolled_back';
 export type ImportType = 'csv' | 'xlsx' | 'manual';
 export type TransformationType = 'none' | 'sum' | 'avg' | 'count' | 'min' | 'max' | 'date_format';
 export type ColumnDataType = 'text' | 'number' | 'date' | 'currency' | 'percentage' | 'boolean';
