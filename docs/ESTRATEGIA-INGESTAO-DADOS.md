@@ -235,11 +235,12 @@ A migração do `imported_metrics.data` (JSONB) para tabelas normalizadas pode s
 
 ## 6. Roadmap de Implementação
 
-### Fase 1 — Normalização (2-3 semanas)
-- [ ] Criar tabelas `dim_periodo`, `fact_financeiro`, `fact_operacional`, `fact_marketing`
-- [ ] Aplicar RLS (mesmas regras de `imported_metrics`)
-- [ ] Atualizar Import Wizard para gravar em tabelas normalizadas
-- [ ] Criar views SQL para dashboards consumirem dados normalizados
+### Fase 1 — Normalização ✅ CONCLUÍDA
+- [x] Criar tabelas `dim_periodo`, `dim_regiao`, `fact_financeiro`, `fact_operacional`, `fact_marketing`
+- [x] Aplicar RLS (admin/gestor para escrita, leitura pública)
+- [x] Atualizar Import Wizard para gravar em tabelas normalizadas (`normalizedImport.ts`)
+- [x] Criar views SQL (`vw_financeiro_resumo`, `vw_operacional_resumo`, `vw_marketing_resumo`)
+- [x] Conectar dashboard/indicadores às views normalizadas (com fallback para mock)
 
 ### Fase 2 — Robustez (2-3 semanas)
 - [ ] Integrar SheetJS para parsing real de XLSX
