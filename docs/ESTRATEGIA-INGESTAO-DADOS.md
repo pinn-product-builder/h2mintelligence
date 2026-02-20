@@ -216,7 +216,7 @@ A migração do `imported_metrics.data` (JSONB) para tabelas normalizadas pode s
 | Formato | Suporte Atual | Observações |
 |---|---|---|
 | CSV (UTF-8, ;/,/tab) | ✅ Completo | Parser com detecção de separador |
-| XLSX/XLS | ⚠️ Mock | Precisa de lib real (SheetJS) |
+| XLSX/XLS | ✅ Completo | SheetJS integrado com parsing real |
 | PDF | ⚠️ Parcial | Parser de documentos existe, mas não integrado ao Data Hub |
 | API REST | ❌ Futuro | Requer edge functions + agendamento |
 | Webhook | ❌ Futuro | Requer endpoint + validação |
@@ -242,11 +242,11 @@ A migração do `imported_metrics.data` (JSONB) para tabelas normalizadas pode s
 - [x] Criar views SQL (`vw_financeiro_resumo`, `vw_operacional_resumo`, `vw_marketing_resumo`)
 - [x] Conectar dashboard/indicadores às views normalizadas (com fallback para mock)
 
-### Fase 2 — Robustez (2-3 semanas)
-- [ ] Integrar SheetJS para parsing real de XLSX
-- [ ] Adicionar templates de importação por tipo de dado
-- [ ] Implementar rollback de importação (desfazer lote)
-- [ ] Criar preview de dados pós-transformação antes de confirmar
+### Fase 2 — Robustez ✅ CONCLUÍDA
+- [x] Integrar SheetJS para parsing real de XLSX
+- [x] Adicionar templates de importação por tipo de dado
+- [x] Implementar rollback de importação (desfazer lote)
+- [x] Criar preview de dados pós-transformação antes de confirmar
 
 ### Fase 3 — Semi-automação (3-4 semanas)
 - [ ] Criar edge functions para receber dados via webhook

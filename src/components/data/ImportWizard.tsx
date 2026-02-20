@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useDataImport } from '@/hooks/useDataImport';
 import { useImportLogs } from '@/hooks/useImportLogs';
 import { useAuth } from '@/contexts/AuthContext';
-import { TARGET_TABLES, WizardStep } from '@/types/dataHub';
+import { TARGET_TABLES, WizardStep, SYSTEM_FIELDS } from '@/types/dataHub';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { DataPreviewEnhanced } from './DataPreviewEnhanced';
 import { ColumnMapper } from './ColumnMapper';
@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { insertNormalizedData } from '@/services/normalizedImport';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Upload, 
   Eye, 
@@ -27,7 +28,8 @@ import {
   AlertTriangle,
   Sparkles,
   FileSpreadsheet,
-  X
+  X,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -419,6 +421,62 @@ export function ImportWizard({ open, onOpenChange, onImportComplete }: ImportWiz
                             Todos os dados validados com sucesso!
                           </div>
                         </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Transformed Data Preview */}
+                  {state.mappings.length > 0 && state.data.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <ArrowRight className="w-4 h-4" />
+                        Preview dos dados transformados (primeiras 5 linhas)
+                      </div>
+                      <div className="rounded-lg border overflow-auto max-h-[250px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {state.mappings.map(m => {
+                                const sysField = SYSTEM_FIELDS.find(f => f.id === m.targetField);
+                                return (
+                                  <TableHead key={m.id} className="text-xs whitespace-nowrap">
+                                    {sysField?.label || m.targetField}
+                                  </TableHead>
+                                );
+                              })}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {state.data.slice(0, 5).map((row, idx) => (
+                              <TableRow key={idx}>
+                                {state.mappings.map(m => {
+                                  const rawValue = row[m.sourceColumn];
+                                  let displayValue = rawValue != null ? String(rawValue) : '—';
+                                  
+                                  // Format based on expected type
+                                  if (m.expectedType === 'currency' && typeof rawValue === 'number') {
+                                    displayValue = rawValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                  } else if (m.expectedType === 'percentage' && typeof rawValue === 'number') {
+                                    displayValue = `${rawValue}%`;
+                                  } else if (m.expectedType === 'number' && typeof rawValue === 'number') {
+                                    displayValue = rawValue.toLocaleString('pt-BR');
+                                  }
+                                  
+                                  return (
+                                    <TableCell key={m.id} className="text-xs whitespace-nowrap">
+                                      {displayValue}
+                                    </TableCell>
+                                  );
+                                })}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      {state.data.length > 5 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          ... e mais {(state.data.length - 5).toLocaleString('pt-BR')} registros
+                        </p>
                       )}
                     </div>
                   )}
