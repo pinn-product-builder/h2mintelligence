@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
+import { detectDateColumns, normalizeDateColumns, type DateConversionLog } from '@/lib/dateNormalizer';
 
 type DataRow = Record<string, string | number>;
 
@@ -7,6 +8,8 @@ interface ParseResult {
   data: DataRow[];
   columns: string[];
   error: string | null;
+  dateConversionLogs?: DateConversionLog[];
+  detectedDateColumns?: string[];
 }
 
 // Simple CSV parser
@@ -78,14 +81,20 @@ export function useFileParser() {
       if (extension === 'csv') {
         const content = await file.text();
         const { data, columns } = parseCSV(content);
-        const result = { data, columns, error: null };
+        const dateCols = detectDateColumns(data, columns);
+        const dateConversionLogs = dateCols.length > 0 ? normalizeDateColumns(data, dateCols) : [];
+        console.log(`[DateNormalizer] CSV "${file.name}" — colunas de data detectadas: [${dateCols.join(', ')}]`, dateConversionLogs);
+        const result: ParseResult = { data, columns, error: null, dateConversionLogs, detectedDateColumns: dateCols };
         setParseResult(result);
         setIsLoading(false);
         return result;
       } else if (extension === 'xlsx' || extension === 'xls') {
         const buffer = await file.arrayBuffer();
         const { data, columns } = parseExcel(buffer);
-        const result = { data, columns, error: null };
+        const dateCols = detectDateColumns(data, columns);
+        const dateConversionLogs = dateCols.length > 0 ? normalizeDateColumns(data, dateCols) : [];
+        console.log(`[DateNormalizer] Excel "${file.name}" — colunas de data detectadas: [${dateCols.join(', ')}]`, dateConversionLogs);
+        const result: ParseResult = { data, columns, error: null, dateConversionLogs, detectedDateColumns: dateCols };
         setParseResult(result);
         setIsLoading(false);
         return result;
