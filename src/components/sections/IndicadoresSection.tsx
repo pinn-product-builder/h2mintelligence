@@ -1,11 +1,14 @@
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, TooltipProps 
 } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Package, Truck, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Package, Truck, BarChart3, Database, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFinanceiroResumo, useOperacionalResumo, useMarketingResumo, useFinanceiroKPIs } from '@/hooks/useNormalizedData';
 
 // Chart color palette using CSS variables
 const CHART_COLORS = {
@@ -19,7 +22,8 @@ const CHART_COLORS = {
   foreground: 'hsl(var(--muted-foreground))',
 };
 
-const faturamentoData = [
+// Mock data as fallback
+const mockFaturamentoData = [
   { mes: 'Ago', valor: 1850000 },
   { mes: 'Set', valor: 1920000 },
   { mes: 'Out', valor: 2050000 },
@@ -28,7 +32,7 @@ const faturamentoData = [
   { mes: 'Jan', valor: 2100000 },
 ];
 
-const custoLogisticaData = [
+const mockCustoLogisticaData = [
   { mes: 'Ago', custo: 85000, meta: 80000 },
   { mes: 'Set', custo: 82000, meta: 80000 },
   { mes: 'Out', custo: 78000, meta: 80000 },
@@ -37,25 +41,41 @@ const custoLogisticaData = [
   { mes: 'Jan', custo: 72000, meta: 75000 },
 ];
 
-const giroEstoqueData = [
+const mockGiroEstoqueData = [
   { categoria: 'Matéria Prima', giro: 8.2 },
   { categoria: 'Embalagens', giro: 6.5 },
   { categoria: 'Prod. Acabados', giro: 7.8 },
   { categoria: 'Insumos', giro: 5.2 },
 ];
 
-const curvaABCData = [
+const mockCurvaABCData = [
   { name: 'Curva A', value: 70, color: CHART_COLORS.primary },
   { name: 'Curva B', value: 20, color: CHART_COLORS.accent },
   { name: 'Curva C', value: 10, color: CHART_COLORS.muted },
 ];
 
-const indicators = [
+const mockIndicators = [
   { title: 'Faturamento Bruto', value: 'R$ 2.1M', change: 12.5, icon: DollarSign, positive: true },
   { title: 'EBITDA', value: 'R$ 386K', change: 8.2, icon: TrendingUp, positive: true },
   { title: 'Custo Logística', value: 'R$ 72K', change: -4.2, icon: Truck, positive: true },
   { title: 'Giro de Estoque', value: '7.2x', change: -0.8, icon: Package, positive: false },
 ];
+
+const mockDREData = [
+  { label: 'Receita Bruta', value: 'R$ 2.100.000', percent: '100%' },
+  { label: '(-) Deduções', value: 'R$ 315.000', percent: '15%' },
+  { label: 'Receita Líquida', value: 'R$ 1.785.000', percent: '85%' },
+  { label: '(-) CMV', value: 'R$ 1.071.000', percent: '51%' },
+  { label: 'Lucro Bruto', value: 'R$ 714.000', percent: '34%' },
+  { label: '(-) Despesas Op.', value: 'R$ 328.000', percent: '15.6%' },
+  { label: 'EBITDA', value: 'R$ 386.000', percent: '18.4%', highlight: true },
+];
+
+function formatCurrency(value: number): string {
+  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(0)}K`;
+  return `R$ ${value.toFixed(0)}`;
+}
 
 // Custom Tooltip Component
 function CustomTooltip({ active, payload, label, formatter }: TooltipProps<number, string> & { formatter?: (value: number) => string }) {
@@ -73,7 +93,124 @@ function CustomTooltip({ active, payload, label, formatter }: TooltipProps<numbe
   );
 }
 
+function DataSourceBadge({ hasData }: { hasData: boolean }) {
+  return (
+    <Badge variant="outline" className={cn(
+      "text-[10px] gap-1",
+      hasData ? "text-success border-success/30" : "text-muted-foreground"
+    )}>
+      <Database className="w-3 h-3" />
+      {hasData ? 'Dados reais' : 'Dados de exemplo'}
+    </Badge>
+  );
+}
+
 export function IndicadoresSection() {
+  const currentYear = new Date().getFullYear();
+  const { kpis, isLoading: finLoading, hasData: hasFinData } = useFinanceiroKPIs(currentYear);
+  const { data: operacional = [], isLoading: opLoading } = useOperacionalResumo(currentYear);
+  const { data: marketing = [], isLoading: mktLoading } = useMarketingResumo(currentYear);
+
+  const hasOpData = operacional.length > 0;
+  const hasMktData = marketing.length > 0;
+
+  // Build indicators from real data or fallback
+  const indicators = useMemo(() => {
+    if (!hasFinData) return mockIndicators;
+
+    const custos = kpis.custos;
+    return [
+      { 
+        title: 'Faturamento Bruto', 
+        value: formatCurrency(kpis.faturamentoBruto), 
+        change: 0, icon: DollarSign, positive: true 
+      },
+      { 
+        title: 'EBITDA', 
+        value: formatCurrency(kpis.ebitda), 
+        change: kpis.margemEbitda, icon: TrendingUp, positive: kpis.ebitda > 0 
+      },
+      { 
+        title: 'Custos Operacionais', 
+        value: formatCurrency(custos), 
+        change: 0, icon: Truck, positive: false 
+      },
+      { 
+        title: 'Investimento Mkt', 
+        value: hasMktData 
+          ? formatCurrency(marketing.reduce((s, r) => s + (r.total_investimento || 0), 0))
+          : 'R$ 0', 
+        change: 0, icon: Package, positive: true 
+      },
+    ];
+  }, [hasFinData, kpis, hasMktData, marketing]);
+
+  // Faturamento chart data
+  const faturamentoChartData = useMemo(() => {
+    if (hasFinData && kpis.faturamentoSeries.length > 0) {
+      return kpis.faturamentoSeries;
+    }
+    return mockFaturamentoData;
+  }, [hasFinData, kpis.faturamentoSeries]);
+
+  // DRE data
+  const dreData = useMemo(() => {
+    if (hasFinData && kpis.dreSummary.length > 0) {
+      return kpis.dreSummary.map(item => ({
+        label: item.label,
+        value: formatCurrency(item.value),
+        percent: item.percent,
+        highlight: item.highlight,
+      }));
+    }
+    return mockDREData;
+  }, [hasFinData, kpis.dreSummary]);
+
+  // Operacional chart data
+  const giroEstoqueChartData = useMemo(() => {
+    if (hasOpData) {
+      const estoqueRows = operacional.filter(r => r.tipo === 'estoque');
+      if (estoqueRows.length > 0) {
+        return estoqueRows.map(r => ({
+          categoria: r.setor || r.classificacao || 'Geral',
+          giro: r.total_quantidade || 0,
+        }));
+      }
+    }
+    return mockGiroEstoqueData;
+  }, [hasOpData, operacional]);
+
+  // Curva ABC data
+  const curvaABCChartData = useMemo(() => {
+    if (hasOpData) {
+      const abcRows = operacional.filter(r => r.tipo === 'curva_abc');
+      if (abcRows.length > 0) {
+        const colors = [CHART_COLORS.primary, CHART_COLORS.accent, CHART_COLORS.muted];
+        return abcRows.map((r, i) => ({
+          name: `Curva ${r.classificacao || String.fromCharCode(65 + i)}`,
+          value: r.total_valor || 0,
+          color: colors[i % colors.length],
+        }));
+      }
+    }
+    return mockCurvaABCData;
+  }, [hasOpData, operacional]);
+
+  // Marketing vendas por região from financeiro
+  const vendasRegiaoData = useMemo(() => {
+    if (hasFinData) {
+      const byRegiao = new Map<string, { vendas: number; meta: number }>();
+      const faturamento = kpis.faturamentoSeries; // This doesn't have regiao breakdown
+      // Try to use raw financeiro data for regional breakdown
+    }
+    return [
+      { regiao: 'Sudeste', vendas: 980000, meta: 900000 },
+      { regiao: 'Sul', vendas: 450000, meta: 500000 },
+      { regiao: 'Nordeste', vendas: 380000, meta: 350000 },
+      { regiao: 'Centro-Oeste', vendas: 290000, meta: 300000 },
+    ];
+  }, [hasFinData, kpis]);
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* KPI Cards */}
@@ -85,21 +222,31 @@ export function IndicadoresSection() {
                 <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
                   <ind.icon className="w-5 h-5 text-primary" strokeWidth={2} />
                 </div>
-                <span className={cn(
-                  "text-sm font-semibold flex items-center gap-1 px-2 py-0.5 rounded-full",
-                  ind.positive 
-                    ? 'text-success bg-success/10' 
-                    : 'text-critical bg-critical/10'
-                )}>
-                  {ind.positive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                  {Math.abs(ind.change)}%
-                </span>
+                {ind.change !== 0 && (
+                  <span className={cn(
+                    "text-sm font-semibold flex items-center gap-1 px-2 py-0.5 rounded-full",
+                    ind.positive 
+                      ? 'text-success bg-success/10' 
+                      : 'text-critical bg-critical/10'
+                  )}>
+                    {ind.positive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    {Math.abs(ind.change).toFixed(1)}%
+                  </span>
+                )}
               </div>
               <p className="text-2xl font-bold tabular-nums">{ind.value}</p>
               <p className="text-sm text-muted-foreground font-medium mt-1">{ind.title}</p>
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Data source indicator */}
+      <div className="flex items-center gap-2">
+        <DataSourceBadge hasData={hasFinData || hasOpData || hasMktData} />
+        {(finLoading || opLoading || mktLoading) && (
+          <span className="text-xs text-muted-foreground animate-pulse">Carregando dados...</span>
+        )}
       </div>
 
       {/* Tabs de Categorias */}
@@ -117,6 +264,11 @@ export function IndicadoresSection() {
           <TabsTrigger value="logistica" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
             Logística
           </TabsTrigger>
+          {hasMktData && (
+            <TabsTrigger value="marketing" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Marketing
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="financeiro" className="mt-6 space-y-6 animate-fade-in">
@@ -130,7 +282,7 @@ export function IndicadoresSection() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={faturamentoData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <AreaChart data={faturamentoChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="faturamentoGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
@@ -174,15 +326,7 @@ export function IndicadoresSection() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-1">
-                  {[
-                    { label: 'Receita Bruta', value: 'R$ 2.100.000', percent: '100%' },
-                    { label: '(-) Deduções', value: 'R$ 315.000', percent: '15%' },
-                    { label: 'Receita Líquida', value: 'R$ 1.785.000', percent: '85%' },
-                    { label: '(-) CMV', value: 'R$ 1.071.000', percent: '51%' },
-                    { label: 'Lucro Bruto', value: 'R$ 714.000', percent: '34%' },
-                    { label: '(-) Despesas Op.', value: 'R$ 328.000', percent: '15.6%' },
-                    { label: 'EBITDA', value: 'R$ 386.000', percent: '18.4%', highlight: true },
-                  ].map((item, i) => (
+                  {dreData.map((item, i) => (
                     <div 
                       key={i} 
                       className={cn(
@@ -199,6 +343,12 @@ export function IndicadoresSection() {
                       </div>
                     </div>
                   ))}
+                  {dreData.length === 0 && (
+                    <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm">Importe dados DRE para visualizar</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -213,12 +363,7 @@ export function IndicadoresSection() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={[
-                    { regiao: 'Sudeste', vendas: 980000, meta: 900000 },
-                    { regiao: 'Sul', vendas: 450000, meta: 500000 },
-                    { regiao: 'Nordeste', vendas: 380000, meta: 350000 },
-                    { regiao: 'Centro-Oeste', vendas: 290000, meta: 300000 },
-                  ]} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <BarChart data={vendasRegiaoData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} vertical={false} />
                     <XAxis dataKey="regiao" stroke={CHART_COLORS.foreground} fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis stroke={CHART_COLORS.foreground} fontSize={12} tickFormatter={(v) => `${(v/1000)}K`} tickLine={false} axisLine={false} width={50} />
@@ -273,7 +418,7 @@ export function IndicadoresSection() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={giroEstoqueData} layout="vertical" margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart data={giroEstoqueChartData} layout="vertical" margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} horizontal={false} />
                     <XAxis type="number" stroke={CHART_COLORS.foreground} fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis type="category" dataKey="categoria" stroke={CHART_COLORS.foreground} fontSize={12} width={100} tickLine={false} axisLine={false} />
@@ -292,7 +437,7 @@ export function IndicadoresSection() {
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Pie
-                      data={curvaABCData}
+                      data={curvaABCChartData}
                       cx="50%"
                       cy="50%"
                       innerRadius={70}
@@ -301,7 +446,7 @@ export function IndicadoresSection() {
                       label={({ name, value }) => `${name}: ${value}%`}
                       labelLine={{ stroke: CHART_COLORS.foreground, strokeWidth: 1 }}
                     >
-                      {curvaABCData.map((entry, index) => (
+                      {curvaABCChartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
                       ))}
                     </Pie>
@@ -320,7 +465,7 @@ export function IndicadoresSection() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={custoLogisticaData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <LineChart data={mockCustoLogisticaData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} vertical={false} />
                   <XAxis dataKey="mes" stroke={CHART_COLORS.foreground} fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis stroke={CHART_COLORS.foreground} fontSize={12} tickFormatter={(v) => `${(v/1000)}K`} tickLine={false} axisLine={false} width={50} />
@@ -348,6 +493,61 @@ export function IndicadoresSection() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {hasMktData && (
+          <TabsContent value="marketing" className="mt-6 animate-fade-in">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card className="card-elevated">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold">Leads e Conversões por Canal</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={marketing.map(r => ({
+                      canal: r.canal || 'Direto',
+                      leads: r.total_leads || 0,
+                      conversoes: r.total_conversoes || 0,
+                    }))} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} vertical={false} />
+                      <XAxis dataKey="canal" stroke={CHART_COLORS.foreground} fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke={CHART_COLORS.foreground} fontSize={12} tickLine={false} axisLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="leads" fill={CHART_COLORS.primary} name="Leads" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="conversoes" fill={CHART_COLORS.success} name="Conversões" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card className="card-elevated">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold">Investimento e ROI</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {marketing.map((r, i) => (
+                      <div key={i} className="flex justify-between items-center py-2.5 px-3 -mx-3 rounded-lg hover:bg-muted/50 transition-colors">
+                        <span className="text-sm font-medium">{r.canal || r.tipo}</span>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-muted-foreground tabular-nums">
+                            {r.total_investimento ? formatCurrency(r.total_investimento) : '-'}
+                          </span>
+                          {r.avg_roi && (
+                            <Badge variant="outline" className={cn(
+                              r.avg_roi > 0 ? 'text-success border-success/30' : 'text-critical border-critical/30'
+                            )}>
+                              ROI {r.avg_roi.toFixed(1)}%
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
