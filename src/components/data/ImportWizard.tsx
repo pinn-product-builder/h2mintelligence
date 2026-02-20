@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDataImport } from '@/hooks/useDataImport';
 import { useImportLogs } from '@/hooks/useImportLogs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,6 +6,8 @@ import { TARGET_TABLES, WizardStep } from '@/types/dataHub';
 import { AdvancedFileUpload } from './AdvancedFileUpload';
 import { DataPreviewEnhanced } from './DataPreviewEnhanced';
 import { ColumnMapper } from './ColumnMapper';
+import { TemplateSelector } from './TemplateSelector';
+import { ImportTemplate, matchTemplate, applyTemplate } from '@/data/importTemplates';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -57,7 +59,36 @@ export function ImportWizard({ open, onOpenChange, onImportComplete }: ImportWiz
   } = useDataImport();
   const { addLog } = useImportLogs();
   const [isConfirming, setIsConfirming] = useState(false);
-  
+  const [selectedTemplate, setSelectedTemplate] = useState<ImportTemplate | null>(null);
+  const [templateMatch, setTemplateMatch] = useState<{ id: string; score: number } | null>(null);
+
+  // Auto-detect template when columns are available
+  useEffect(() => {
+    if (state.columns.length > 0 && state.step === 'preview') {
+      const match = matchTemplate(state.columns, state.targetTable || undefined);
+      if (match && match.score >= 0.3) {
+        setTemplateMatch({ id: match.template.id, score: match.score });
+      } else {
+        setTemplateMatch(null);
+      }
+    }
+  }, [state.columns, state.step, state.targetTable]);
+
+  const handleSelectTemplate = (template: ImportTemplate | null) => {
+    setSelectedTemplate(template);
+    if (template) {
+      setTargetTable(template.targetTable);
+      if (state.columns.length > 0) {
+        const mappings = applyTemplate(template, state.columns);
+        setMappings(mappings);
+        toast({
+          title: 'Template aplicado!',
+          description: `${mappings.length} campo(s) mapeados automaticamente com "${template.name}".`,
+        });
+      }
+    }
+  };
+
   const currentStepIndex = steps.findIndex(s => s.id === state.step);
   
   const handleNext = () => {
@@ -194,6 +225,8 @@ export function ImportWizard({ open, onOpenChange, onImportComplete }: ImportWiz
   
   const handleClose = () => {
     reset();
+    setSelectedTemplate(null);
+    setTemplateMatch(null);
     onOpenChange(false);
   };
 
@@ -267,6 +300,14 @@ export function ImportWizard({ open, onOpenChange, onImportComplete }: ImportWiz
           {/* Step 3: Mapping */}
           {state.step === 'mapping' && (
             <div className="space-y-6">
+              {/* Template Selector */}
+              <TemplateSelector
+                selectedTemplate={selectedTemplate}
+                onSelect={handleSelectTemplate}
+                matchedTemplateId={templateMatch?.id}
+                matchScore={templateMatch?.score}
+              />
+
               {/* Target Table Selection */}
               <Card className="card-elevated">
                 <CardHeader>
