@@ -31,14 +31,7 @@ export interface Notification {
   section?: string;
 }
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: '1', title: 'OKR "Aumentar faturamento" atingiu 75%', description: 'O objetivo está no caminho certo para atingir a meta.', time: 'Há 2 horas', read: false, section: 'okrs' },
-  { id: '2', title: 'Checkpoint de Q1 2026 em 2 dias', description: 'Prepare os dados para a revisão trimestral.', time: 'Há 5 horas', read: false, section: 'dashboard' },
-  { id: '3', title: 'Novo ciclo Q2 2026 disponível', description: 'Configure os novos objetivos para o próximo trimestre.', time: 'Há 1 dia', read: true, section: 'okrs' },
-  { id: '4', title: 'KR "Leads qualificados" atualizado', description: 'Valor atual: 340 de 500 leads.', time: 'Há 2 dias', read: true, section: 'okrs' },
-  { id: '5', title: 'Importação de dados concluída', description: '1.250 registros importados com sucesso.', time: 'Há 3 dias', read: true, section: 'datasource' },
-  { id: '6', title: 'Novo usuário cadastrado', description: 'Maria Silva foi adicionada ao sistema.', time: 'Há 4 dias', read: true, section: 'usuarios' },
-];
+const INITIAL_NOTIFICATIONS: Notification[] = [];
 
 interface HeaderProps {
   title: string;

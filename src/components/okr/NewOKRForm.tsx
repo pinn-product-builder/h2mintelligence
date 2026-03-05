@@ -226,47 +226,6 @@ export function NewOKRForm({ trigger }: NewOKRFormProps) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Import Section */}
-            <Collapsible open={importOpen} onOpenChange={setImportOpen}>
-              <CollapsibleTrigger asChild>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full justify-between gap-2 border-dashed"
-                >
-                  <span className="flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-primary" />
-                    Importar dados de documento (opcional)
-                  </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${importOpen ? 'rotate-180' : ''}`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-4 space-y-4">
-                {!parsedDocument ? (
-                  <div className="space-y-2">
-                    <FileDropZone
-                      onFileSelect={handleFileSelect}
-                      selectedFile={selectedFile}
-                      onClearFile={handleClearFile}
-                      accept=".csv,.xlsx,.xls,.pdf,.docx,.doc"
-                    />
-                    {isParsing && (
-                      <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Processando documento...
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <DocumentDataMapper
-                    document={parsedDocument}
-                    onApplyMapping={handleApplyMapping}
-                    onCancel={handleCancelMapping}
-                  />
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-
             {/* Objetivo */}
             <div className="space-y-4">
               <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">

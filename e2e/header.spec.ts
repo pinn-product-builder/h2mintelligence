@@ -23,62 +23,12 @@ test.describe('Header', () => {
     await expect(page.locator('h1')).toContainText(/OKR/i);
   });
 
-  test('deve abrir dropdown de notificações com itens', async ({ page }) => {
+  test('deve abrir dropdown de notificações vazio', async ({ page }) => {
     const bellButton = page.locator('header button:has(svg.lucide-bell)');
     await bellButton.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
     await expect(page.locator('[role="menu"]')).toBeVisible();
-    await expect(page.locator('[role="menuitem"]').first()).toBeVisible();
-  });
-
-  test('deve marcar todas notificações como lidas e exibir toast', async ({ page }) => {
-    const bellButton = page.locator('header button:has(svg.lucide-bell)');
-    await bellButton.click();
-    await page.waitForTimeout(500);
-    const markAllBtn = page.getByText('Marcar todas como lidas');
-    if (await markAllBtn.isVisible().catch(() => false)) {
-      await markAllBtn.click();
-      await page.waitForTimeout(1000);
-      await expect(page.locator('[data-state="open"][role="status"], li[role="status"]').first()).toBeVisible({ timeout: 5000 }).catch(() => {});
-    }
-  });
-
-  test('deve clicar em notificação e navegar para a seção', async ({ page }) => {
-    const bellButton = page.locator('header button:has(svg.lucide-bell)');
-    await bellButton.click();
-    await page.waitForTimeout(500);
-    const firstNotif = page.locator('[role="menuitem"]').first();
-    await firstNotif.click();
-    await page.waitForTimeout(1500);
-    await expect(page.locator('h1')).toBeVisible();
-  });
-
-  test('deve remover notificação individual ao clicar no X', async ({ page }) => {
-    const bellButton = page.locator('header button:has(svg.lucide-bell)');
-    await bellButton.click();
-    await page.waitForTimeout(500);
-    const initialCount = await page.locator('[role="menuitem"]').count();
-    expect(initialCount).toBeGreaterThan(0);
-    const firstNotif = page.locator('[role="menuitem"]').first();
-    await firstNotif.hover();
-    await page.waitForTimeout(300);
-    const dismissBtn = firstNotif.locator('button[title="Remover notificação"]');
-    await dismissBtn.click({ force: true });
-    await page.waitForTimeout(500);
-    const newCount = await page.locator('[role="menuitem"]').count();
-    expect(newCount).toBeLessThan(initialCount);
-  });
-
-  test('deve limpar todas as notificações', async ({ page }) => {
-    const bellButton = page.locator('header button:has(svg.lucide-bell)');
-    await bellButton.click();
-    await page.waitForTimeout(500);
-    const clearBtn = page.locator('button').filter({ hasText: 'Limpar' });
-    if (await clearBtn.isVisible().catch(() => false)) {
-      await clearBtn.click({ force: true });
-      await page.waitForTimeout(500);
-      await expect(page.getByText('Nenhuma notificação')).toBeVisible();
-    }
+    await expect(page.getByText('Nenhuma notificação')).toBeVisible();
   });
 
   test('deve trocar tema (claro/escuro)', async ({ page }) => {
