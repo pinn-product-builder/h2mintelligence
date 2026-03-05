@@ -65,17 +65,10 @@ test.describe('Configurações - Completo', () => {
     }
   });
 
-  test('deve clicar nos 5 botões de template de importação', async ({ page }) => {
+  test('deve não exibir seção de templates de importação', async ({ page }) => {
     await page.locator('button[role="tab"]').filter({ hasText: 'Integração' }).click();
     await page.waitForTimeout(500);
-
-    const templates = ['Faturamento', 'Custos Operacionais', 'Estoque', 'Metas OKR', 'Leads Marketing'];
-    for (const t of templates) {
-      const btn = page.locator('button').filter({ hasText: t });
-      await expect(btn).toBeVisible();
-      await btn.click();
-      await page.waitForTimeout(500);
-    }
+    await expect(page.getByText('Templates de Importação')).not.toBeVisible();
   });
 
   // ── Aba Notificações ──────────────────────────────────

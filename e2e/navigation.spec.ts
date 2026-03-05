@@ -9,7 +9,6 @@ test.describe('Navegação Sidebar', () => {
   test('deve exibir sidebar com todas as seções', async ({ page }) => {
     await expect(page.locator('aside button, nav button').filter({ hasText: 'Dashboard' })).toBeVisible();
     await expect(page.locator('aside button, nav button').filter({ hasText: /OKR/i })).toBeVisible();
-    await expect(page.locator('aside button, nav button').filter({ hasText: 'Data Source' })).toBeVisible();
     await expect(page.locator('aside button, nav button').filter({ hasText: /Usuário/i })).toBeVisible();
     await expect(page.locator('aside button, nav button').filter({ hasText: /Configura/i })).toBeVisible();
   });
@@ -24,11 +23,6 @@ test.describe('Navegação Sidebar', () => {
   test('deve navegar para OKRs', async ({ page }) => {
     await navigateToSection(page, 'OKR');
     await expect(page.locator('h1')).toContainText(/OKR/i);
-  });
-
-  test('deve navegar para Data Source', async ({ page }) => {
-    await navigateToSection(page, 'Data Source');
-    await expect(page.locator('h1')).toContainText(/Data Source/i);
   });
 
   test('deve navegar para Usuários', async ({ page }) => {

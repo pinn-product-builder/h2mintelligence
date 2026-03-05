@@ -58,10 +58,12 @@ test.describe('Header', () => {
     await bellButton.click();
     await page.waitForTimeout(500);
     const initialCount = await page.locator('[role="menuitem"]').count();
-    const dismissBtn = page.locator('[role="menuitem"] button').first();
+    expect(initialCount).toBeGreaterThan(0);
+    const firstNotif = page.locator('[role="menuitem"]').first();
+    await firstNotif.hover();
+    await page.waitForTimeout(300);
+    const dismissBtn = firstNotif.locator('button[title="Remover notificação"]');
     await dismissBtn.click({ force: true });
-    await page.waitForTimeout(1000);
-    await bellButton.click();
     await page.waitForTimeout(500);
     const newCount = await page.locator('[role="menuitem"]').count();
     expect(newCount).toBeLessThan(initialCount);
@@ -71,11 +73,9 @@ test.describe('Header', () => {
     const bellButton = page.locator('header button:has(svg.lucide-bell)');
     await bellButton.click();
     await page.waitForTimeout(500);
-    const clearBtn = page.getByText('Limpar');
+    const clearBtn = page.locator('button').filter({ hasText: 'Limpar' });
     if (await clearBtn.isVisible().catch(() => false)) {
-      await clearBtn.click();
-      await page.waitForTimeout(500);
-      await bellButton.click();
+      await clearBtn.click({ force: true });
       await page.waitForTimeout(500);
       await expect(page.getByText('Nenhuma notificação')).toBeVisible();
     }
