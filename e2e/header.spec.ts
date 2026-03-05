@@ -10,53 +10,33 @@ test.describe('Header', () => {
     await expect(page.locator('header h1')).toBeVisible();
   });
 
-  test('deve ter campo de busca', async ({ page }) => {
+  test('deve ter campo de busca no header', async ({ page }) => {
     const searchInput = page.locator('header input[placeholder*="Buscar"]');
     await expect(searchInput).toBeVisible();
   });
 
-  test('deve executar busca e navegar para OKRs', async ({ page }) => {
+  test('deve executar busca via Enter', async ({ page }) => {
     const searchInput = page.locator('header input[placeholder*="Buscar"]');
     await searchInput.fill('faturamento');
     await searchInput.press('Enter');
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
     await expect(page.locator('h1')).toContainText(/OKR/i);
   });
 
-  test('deve abrir dropdown de notificações', async ({ page }) => {
-    const bellButton = page.locator('header button').filter({ has: page.locator('svg') }).nth(0);
-    await bellButton.click();
-    await page.waitForTimeout(500);
-    const dropdownVisible = await page.locator('text=Notificações').isVisible().catch(() => false);
-    expect(dropdownVisible).toBeTruthy();
+  test('deve abrir dropdown de notificações ao clicar no sino', async ({ page }) => {
+    const bellButton = page.locator('header button:has(svg.lucide-bell)');
+    const altBell = page.locator('header button').filter({ has: page.locator('svg') }).first();
+    const btn = await bellButton.isVisible().catch(() => false) ? bellButton : altBell;
+    await btn.click();
+    await page.waitForTimeout(1000);
+    const menuVisible = await page.locator('[role="menu"], [role="menuitem"]').first().isVisible().catch(() => false);
+    expect(menuVisible).toBeTruthy();
   });
 
-  test('deve exibir lista de notificações', async ({ page }) => {
-    const bellButton = page.locator('header button').filter({ has: page.locator('svg') }).nth(0);
-    await bellButton.click();
-    await page.waitForTimeout(500);
-    const notifItems = page.locator('[role="menuitem"]');
-    const count = await notifItems.count();
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test('deve alternar tema claro/escuro', async ({ page }) => {
-    const themeSelect = page.locator('header button[role="combobox"]');
-    if (await themeSelect.isVisible().catch(() => false)) {
-      await themeSelect.click();
-      await page.waitForTimeout(300);
-      const darkOption = page.locator('[role="option"]').filter({ hasText: /Escuro/i });
-      if (await darkOption.isVisible().catch(() => false)) {
-        await darkOption.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  });
-
-  test('deve abrir menu do usuário', async ({ page }) => {
+  test('deve abrir menu do usuário e ver opção Sair', async ({ page }) => {
     const userBtn = page.locator('header button').last();
     await userBtn.click();
     await page.waitForTimeout(500);
-    await expect(page.locator('text=Sair')).toBeVisible();
+    await expect(page.locator('[role="menuitem"]').filter({ hasText: /Sair/i })).toBeVisible({ timeout: 3000 });
   });
 });

@@ -1,11 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, navigateToSection } from './helpers';
 
 test.describe('Usuários', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await page.locator('aside button, nav button').filter({ hasText: /Usu/i }).first().click();
-    await page.waitForTimeout(1000);
+    await navigateToSection(page, 'Usuário');
   });
 
   test('deve exibir seção de usuários', async ({ page }) => {
@@ -13,7 +12,7 @@ test.describe('Usuários', () => {
   });
 
   test('deve ter campo de busca de usuários', async ({ page }) => {
-    const searchInput = page.locator('input[placeholder*="Buscar"]');
+    const searchInput = page.locator('input[placeholder*="usuário"]');
     await expect(searchInput).toBeVisible();
   });
 
@@ -25,11 +24,11 @@ test.describe('Usuários', () => {
   test('deve abrir dialog de novo usuário', async ({ page }) => {
     await page.locator('button').filter({ hasText: /Novo Usu/i }).click();
     await page.waitForTimeout(500);
-    await expect(page.locator('[role="dialog"]')).toBeVisible();
+    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5000 });
   });
 
   test('deve buscar usuários', async ({ page }) => {
-    const searchInput = page.locator('input[placeholder*="Buscar"]');
+    const searchInput = page.locator('input[placeholder*="usuário"]');
     await searchInput.fill('admin');
     await page.waitForTimeout(500);
   });

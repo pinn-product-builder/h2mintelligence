@@ -7,7 +7,13 @@ import { TaskForm } from '@/components/okr/TaskForm';
 import { useObjectives, useSectors, useCycles } from '@/hooks/useSupabaseData';
 import { Plus, Filter, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { MetricCard as MetricCardType, SectorSummary } from '@/types/okr';
 import { SkeletonMetricCard, SkeletonCard } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,6 +23,11 @@ export function Dashboard() {
   const activeCycle = cycles.find(c => c.is_active && !c.is_archived);
   const { data: objectives = [], isLoading: objectivesLoading } = useObjectives(activeCycle?.id);
   const { data: sectors = [], isLoading: sectorsLoading } = useSectors();
+  const [statusFilter, setStatusFilter] = useState<Record<string, boolean>>({
+    'on-track': true,
+    'attention': true,
+    'critical': true,
+  });
 
   // Calculate metrics from real data
   const metrics: MetricCardType[] = useMemo(() => {
@@ -190,10 +201,34 @@ export function Dashboard() {
               OKRs Ativos {activeCycle && `- ${activeCycle.name}`}
             </h2>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="w-4 h-4" />
-                Filtrar
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="w-4 h-4" />
+                    Filtrar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter['on-track']}
+                    onCheckedChange={(v) => setStatusFilter(f => ({ ...f, 'on-track': !!v }))}
+                  >
+                    No Caminho
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter['attention']}
+                    onCheckedChange={(v) => setStatusFilter(f => ({ ...f, 'attention': !!v }))}
+                  >
+                    Atenção
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={statusFilter['critical']}
+                    onCheckedChange={(v) => setStatusFilter(f => ({ ...f, 'critical': !!v }))}
+                  >
+                    Crítico
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <TaskForm
                 trigger={
                   <Button variant="outline" size="sm" className="gap-2">
@@ -215,7 +250,7 @@ export function Dashboard() {
           
           {transformedObjectives.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {transformedObjectives.map((objective, index) => (
+              {transformedObjectives.filter(o => statusFilter[o.status] !== false).map((objective, index) => (
                 <OKRCard key={objective.id} objective={objective} index={index} />
               ))}
             </div>

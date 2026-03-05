@@ -2,6 +2,7 @@ import { SectorSummary } from '@/types/okr';
 import { ProgressBar } from './ProgressBar';
 import { cn } from '@/lib/utils';
 import { Building2, ChevronRight } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface SectorOverviewProps {
   sectors: SectorSummary[];
@@ -54,6 +55,12 @@ function SectorRow({ sector, index }: SectorRowProps) {
     <div 
       className="group cursor-pointer p-3 -mx-3 rounded-lg hover:bg-muted/40 transition-all duration-200"
       style={{ animationDelay: `${index * 50}ms` }}
+      onClick={() => {
+        toast({
+          title: sector.label,
+          description: `${sector.totalOKRs} OKR(s) • ${sector.onTrack} no caminho • ${sector.attention} atenção • ${sector.critical} crítico • Progresso médio: ${sector.avgProgress}%`,
+        });
+      }}
     >
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-3 flex-1 min-w-0">

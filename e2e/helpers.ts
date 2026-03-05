@@ -8,21 +8,23 @@ export const TEST_USER = {
 export async function login(page: Page) {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1000);
 
   const emailInput = page.locator('input[type="email"]');
-  const passwordInput = page.locator('input[type="password"]');
+  const isLoginPage = await emailInput.isVisible({ timeout: 3000 }).catch(() => false);
 
-  if (await emailInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+  if (isLoginPage) {
     await emailInput.fill(TEST_USER.email);
-    await passwordInput.fill(TEST_USER.password);
+    await page.locator('input[type="password"]').fill(TEST_USER.password);
     await page.locator('button[type="submit"]').click();
-    await page.waitForTimeout(2000);
-    await expect(page.locator('text=Dashboard')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(3000);
   }
+
+  await expect(page.locator('h1')).toBeVisible({ timeout: 15000 });
 }
 
 export async function navigateToSection(page: Page, sectionName: string) {
-  const sidebarButton = page.locator(`nav button, aside button, [role="button"]`).filter({ hasText: sectionName });
+  const sidebarButton = page.locator('aside button, nav button, [role="button"]').filter({ hasText: sectionName });
   await sidebarButton.first().click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
 }

@@ -346,7 +346,36 @@ export function ImportLogViewer({
                             </AlertDialogContent>
                           </AlertDialog>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            const data = {
+                              id: log.id,
+                              arquivo: log.sourceFile,
+                              tipo: log.importType,
+                              status: log.status,
+                              inicio: log.startedAt,
+                              conclusao: log.completedAt ?? '',
+                              usuario: log.userName,
+                              totalLinhas: log.totalRows,
+                              processadas: log.processedRows,
+                              ignoradas: log.skippedRows,
+                              erros: log.errorRows,
+                              detalhesErros: log.errors.map(e => `Linha ${e.row}: ${e.message}`).join('\n'),
+                            };
+                            const csv = Object.keys(data).join(';') + '\n' + Object.values(data).join(';');
+                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `log_${log.id}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            toast({ title: 'Download iniciado', description: `Log "${log.sourceFile}" exportado.` });
+                          }}
+                        >
                           <Download className="w-4 h-4" />
                         </Button>
                         {onDeleteLog && (

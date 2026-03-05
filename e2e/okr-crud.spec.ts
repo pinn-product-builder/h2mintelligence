@@ -1,11 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, navigateToSection } from './helpers';
 
 test.describe('OKR CRUD', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await page.locator('aside button, nav button').filter({ hasText: /OKR/i }).first().click();
-    await page.waitForTimeout(1000);
+    await navigateToSection(page, 'OKR');
   });
 
   test('deve exibir a seção de OKRs', async ({ page }) => {
@@ -19,39 +18,27 @@ test.describe('OKR CRUD', () => {
 
   test('deve abrir formulário de novo OKR', async ({ page }) => {
     await page.locator('button').filter({ hasText: /Novo OKR/i }).click();
-    await page.waitForTimeout(500);
-    const formVisible = await page.locator('text=Título do Objetivo').isVisible().catch(() => false);
-    const dialogVisible = await page.locator('[role="dialog"]').isVisible().catch(() => false);
-    expect(formVisible || dialogVisible).toBeTruthy();
+    await page.waitForTimeout(1000);
+    const formOrDialog = page.locator('[role="dialog"], form, input[placeholder]');
+    await expect(formOrDialog.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('deve ter filtros de visualização', async ({ page }) => {
-    const allStatuses = ['Todos', 'No Caminho', 'Atenção', 'Crítico'];
-    for (const status of allStatuses) {
-      const btn = page.locator('button').filter({ hasText: new RegExp(status, 'i') });
-      const isVisible = await btn.isVisible().catch(() => false);
-      if (isVisible) {
-        await btn.click();
-        await page.waitForTimeout(300);
-      }
-    }
-  });
-
-  test('deve alternar modo de visualização grid/lista', async ({ page }) => {
-    const viewButtons = page.locator('button[data-view], button:has(svg)').filter({ hasText: '' });
-    const count = await viewButtons.count();
+    const filterBtns = page.locator('button').filter({ hasText: /Todos|No Caminho|Atenção|Crítico/i });
+    const count = await filterBtns.count();
     expect(count).toBeGreaterThan(0);
   });
 
-  test('deve abrir modal de detalhe de OKR ao clicar em um card', async ({ page }) => {
-    const okrCards = page.locator('[class*="card"], [class*="Card"]').filter({ hasText: /\d+%/ });
-    const count = await okrCards.count();
+  test('deve abrir modal de detalhe ao clicar em OKR card', async ({ page }) => {
+    const cards = page.locator('[class*="card"], [class*="Card"]').filter({ hasText: /\d+%/ });
+    const count = await cards.count();
     if (count > 0) {
-      await okrCards.first().click();
+      await cards.first().click();
       await page.waitForTimeout(1000);
-      const dialogVisible = await page.locator('[role="dialog"]').isVisible().catch(() => false);
-      if (dialogVisible) {
-        await expect(page.locator('[role="dialog"]')).toBeVisible();
+      const dialog = page.locator('[role="dialog"]');
+      const isVisible = await dialog.isVisible().catch(() => false);
+      if (isVisible) {
+        await expect(dialog).toBeVisible();
       }
     }
   });

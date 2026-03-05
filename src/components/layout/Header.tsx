@@ -62,11 +62,14 @@ export function Header({ title, subtitle, breadcrumbs, onSearch }: HeaderProps) 
             {breadcrumbs.map((crumb, index) => (
               <span key={index} className="flex items-center gap-1">
                 {index > 0 && <ChevronRight className="w-3 h-3" />}
-                <span className={cn(
-                  index === breadcrumbs.length - 1 
-                    ? "text-foreground font-medium" 
-                    : "hover:text-foreground cursor-pointer transition-colors"
-                )}>
+                <span
+                  className={cn(
+                    index === breadcrumbs.length - 1 
+                      ? "text-foreground font-medium" 
+                      : "hover:text-foreground cursor-pointer transition-colors"
+                  )}
+                  onClick={crumb.href && index < breadcrumbs.length - 1 ? () => window.location.hash = crumb.href! : undefined}
+                >
                   {crumb.label}
                 </span>
               </span>
