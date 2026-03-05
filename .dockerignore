@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+e2e
+test-results
+playwright.config.ts
+playwright-report
+*.md
+.lovable
+supabase
+docs
