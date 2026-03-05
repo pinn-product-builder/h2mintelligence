@@ -209,7 +209,7 @@
 
   .card-elevated::before {
     content: '';
-    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300 pointer-events-none;
     background: linear-gradient(135deg, hsl(var(--accent) / 0.03), transparent 60%);
   }
 
@@ -232,13 +232,13 @@
 
   .metric-card::before {
     content: '';
-    @apply absolute inset-0 opacity-20;
+    @apply absolute inset-0 opacity-20 pointer-events-none;
     background: radial-gradient(ellipse at top right, white 0%, transparent 70%);
   }
 
   .metric-card::after {
     content: '';
-    @apply absolute bottom-0 left-0 right-0 h-1/2 opacity-10;
+    @apply absolute bottom-0 left-0 right-0 h-1/2 opacity-10 pointer-events-none;
     background: linear-gradient(to top, black, transparent);
   }
 
