@@ -33,6 +33,12 @@ const statusConfig: Record<OKRStatus, {
     solidClassName: 'bg-critical text-critical-foreground',
     icon: XCircle,
   },
+  'completed': {
+    label: 'Concluído',
+    className: 'status-on-track',
+    solidClassName: 'bg-success text-success-foreground',
+    icon: CheckCircle2,
+  },
 };
 
 const sizeConfig = {
@@ -56,7 +62,7 @@ export function StatusBadge({
   size = 'md',
   variant = 'default'
 }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? statusConfig['on-track'];
   const sizeStyles = sizeConfig[size];
   const Icon = config.icon;
 
