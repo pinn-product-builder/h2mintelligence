@@ -66,14 +66,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setSupabaseUser(null);
+          setIsLoading(false);
+          return;
+        }
+
         setSession(session);
         setSupabaseUser(session?.user ?? null);
 
         if (session?.user) {
-          // Use setTimeout to avoid potential deadlock with Supabase client
           setTimeout(async () => {
             const userData = await fetchUserData(session.user);
             setUser(userData);
@@ -86,8 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn('Session recovery failed, clearing:', error.message);
+        supabase.auth.signOut();
+        setIsLoading(false);
+        return;
+      }
+
       setSession(session);
       setSupabaseUser(session?.user ?? null);
       
@@ -112,13 +125,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: translateAuthError(error.message) };
       }
 
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error.message || 'Erro ao fazer login' };
+      return { success: false, error: translateAuthError(error.message || 'Erro ao fazer login') };
     }
+  };
+
+  const translateAuthError = (message: string): string => {
+    const map: Record<string, string> = {
+      'User already registered': 'Este email já está cadastrado. Tente fazer login.',
+      'Password should be at least 6 characters': 'A senha deve ter pelo menos 6 caracteres.',
+      'Unable to validate email address: invalid format': 'Formato de email inválido.',
+      'Signup requires a valid password': 'Informe uma senha válida.',
+      'Email rate limit exceeded': 'Muitas tentativas. Aguarde alguns minutos.',
+      'Signups not allowed for this instance': 'Cadastro desativado. Peça ao administrador para criar sua conta.',
+      'Invalid login credentials': 'Email ou senha incorretos.',
+      'Email not confirmed': 'Email não confirmado. Verifique sua caixa de entrada.',
+    };
+    for (const [key, value] of Object.entries(map)) {
+      if (message.toLowerCase().includes(key.toLowerCase())) return value;
+    }
+    return message;
   };
 
   const signup = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
@@ -135,27 +165,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: translateAuthError(error.message) };
       }
 
-      // Create profile for the new user
       if (data.user) {
-        await supabase.from('profiles').insert({
+        const { error: profileError } = await supabase.from('profiles').insert({
           user_id: data.user.id,
           name,
           email,
         });
+        if (profileError) console.warn('Profile creation warning:', profileError.message);
 
-        // Assign default role (visualizador)
-        await supabase.from('user_roles').insert({
+        const { error: roleError } = await supabase.from('user_roles').insert({
           user_id: data.user.id,
           role: 'visualizador',
         });
+        if (roleError) console.warn('Role assignment warning:', roleError.message);
       }
 
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error.message || 'Erro ao criar conta' };
+      return { success: false, error: translateAuthError(error.message || 'Erro ao criar conta') };
     }
   };
 
